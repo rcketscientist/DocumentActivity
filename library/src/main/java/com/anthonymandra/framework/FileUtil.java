@@ -6,6 +6,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.os.storage.StorageManager;
 import android.provider.DocumentsContract;
@@ -621,5 +622,42 @@ public class FileUtil
 			}
 		}
 		return valid;
+	}
+
+	/**
+	 * Get a usable cache directory (external if available, internal otherwise).
+	 *
+	 * @param context    The context to use
+	 * @param uniqueName A unique directory name to append to the cache dir
+	 * @return The cache dir
+	 */
+	public static File getDiskCacheDir(Context context, String uniqueName)
+	{
+		// Check if media is mounted or storage is built-in, if so, try and use external cache dir
+		// otherwise use internal cache dir
+		File cache = null;
+		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) || !isExternalStorageRemovable())
+		{
+			cache = context.getExternalCacheDir();
+		}
+		if (cache == null)
+			cache = context.getCacheDir();
+
+		return new File(cache, uniqueName);
+	}
+
+	/**
+	 * Check if external storage is built-in or removable.
+	 *
+	 * @return True if external storage is removable (like an SD card), false otherwise.
+	 */
+	@TargetApi(9)
+	public static boolean isExternalStorageRemovable()
+	{
+		if (Util.hasGingerbread())
+		{
+			return Environment.isExternalStorageRemovable();
+		}
+		return true;
 	}
 }
