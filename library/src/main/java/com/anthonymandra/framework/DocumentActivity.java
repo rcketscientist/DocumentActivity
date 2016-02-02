@@ -642,7 +642,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 * @return A list of external SD card paths.
 	 */
 	@TargetApi(Build.VERSION_CODES.KITKAT)
-	private String[] getExtSdCardPaths() {
+	protected String[] getExtSdCardPaths() {
 		List<String> paths = new ArrayList<String>();
 		for (File file : getExternalFilesDirs("external")) {
 			if (file != null && !file.equals(getExternalFilesDir("external"))) {
@@ -761,6 +761,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 			throws WritePermissionException
 	{
 		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
+
 		if (!target.exists())
 		{
 			UsefulDocumentFile parent = target.getParentFile();
@@ -866,6 +867,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		for (UriPermission permission : mRootPermissions)
 		{
+			// TODO: This will not work with file schemes, there might not be a way to do so...
 			String permissionTreeId = DocumentsContract.getTreeDocumentId(permission.getUri());
 			String uriTreeId = DocumentsContract.getTreeDocumentId(uri);
 

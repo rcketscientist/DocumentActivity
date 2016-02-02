@@ -95,7 +95,12 @@ public class UsefulDocumentFile
 
     protected String getDocumentId()
     {
-        if (DocumentsContract.isDocumentUri(mContext, mDocument.getUri()))
+        if (FileUtil.isFileScheme(mDocument.getUri()))
+        {
+            // The scheme: is to ensure it maintains the same format as a documentId
+            return mDocument.getUri().getScheme() + ":" + mDocument.getUri().getPath();
+        }
+        else if (DocumentsContract.isDocumentUri(mContext, mDocument.getUri()))
         {
             return DocumentsContract.getDocumentId(mDocument.getUri());
         }
