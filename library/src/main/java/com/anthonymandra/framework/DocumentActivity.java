@@ -761,6 +761,13 @@ public abstract class DocumentActivity extends AppCompatActivity
 			throws WritePermissionException
 	{
 		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
+		if (!hasPermission(uri))
+		{
+			requestWritePermission();
+			throw new WritePermissionException(
+					"Write permission not found.  This indicates a SAF write permission was requested.  " +
+					"The app should store any parameters necessary to resume write here.");
+		}
 
 		if (!target.exists())
 		{
@@ -865,15 +872,32 @@ public abstract class DocumentActivity extends AppCompatActivity
 		if (uri == null)
 			return null;
 
-		for (UriPermission permission : mRootPermissions)
+		// Files can't be correlated to UriPermissions so rely on canWrite?
+		if (FileUtil.isFileScheme(uri))
 		{
-			// TODO: This will not work with file schemes, there might not be a way to do so...
-			String permissionTreeId = DocumentsContract.getTreeDocumentId(permission.getUri());
-			String uriTreeId = DocumentsContract.getTreeDocumentId(uri);
-
-			if (uriTreeId.startsWith(permissionTreeId))
+			File f = new File(uri.getPath());
+			File parent = f.getParentFile();
+			if (f.canWrite())
+				return Uri.fromFile(f);
+			while (f != null && !f.canWrite())
 			{
-				return permission.getUri();
+				f = f.getParentFile();
+				if (f.canWrite())
+					return Uri.fromFile(f);
+			}
+		}
+		else
+		{
+			for (UriPermission permission : mRootPermissions)
+			{
+				// TODO: This will not work with file schemes, there might not be a way to do so...
+				String permissionTreeId = DocumentsContract.getTreeDocumentId(permission.getUri());
+				String uriTreeId = DocumentsContract.getTreeDocumentId(uri);
+
+				if (uriTreeId.startsWith(permissionTreeId))
+				{
+					return permission.getUri();
+				}
 			}
 		}
 

@@ -95,12 +95,7 @@ public class UsefulDocumentFile
 
     protected String getDocumentId()
     {
-        if (FileUtil.isFileScheme(mDocument.getUri()))
-        {
-            // The scheme: is to ensure it maintains the same format as a documentId
-            return mDocument.getUri().getScheme() + ":" + mDocument.getUri().getPath();
-        }
-        else if (DocumentsContract.isDocumentUri(mContext, mDocument.getUri()))
+        if (DocumentsContract.isDocumentUri(mContext, mDocument.getUri()))
         {
             return DocumentsContract.getDocumentId(mDocument.getUri());
         }
@@ -123,6 +118,16 @@ public class UsefulDocumentFile
     protected UsefulDocumentFile getParentDocument()
     {
         Uri uri = mDocument.getUri();
+        // Files need to be handled separately
+        if (FileUtil.isFileScheme(uri))
+        {
+            File f = new File(uri.getPath());
+            File parent = f.getParentFile();
+            if (parent == null)
+                return null;
+            return UsefulDocumentFile.fromFile(mContext, parent);
+        }
+
         String documentId = getDocumentId();
 
         // usb:folder/file.ext would effectively be:
@@ -197,8 +202,15 @@ public class UsefulDocumentFile
         String name = mDocument.getName();
         if (name == null)
         {
+            Uri uri = mDocument.getUri();
             // Some tree uris have no name...do it the hard way.
-            Log.d(TAG, mDocument.getUri() + " produced null getName().");
+            Log.d(TAG, uri + " produced null getName().");
+            if (FileUtil.isFileScheme(uri))
+            {
+                File f = new File(uri.getPath());
+                return f.getName();
+            }
+
             String[] pathParts = getPathSegments(getDocumentId());
             if (pathParts != null)
                 return pathParts[pathParts.length-1];
