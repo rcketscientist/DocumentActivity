@@ -344,6 +344,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 	private boolean deleteFile(final File file)
 			throws WritePermissionException
 	{
+		if (!file.exists())
+			return false;
+
 		// First try the normal deletion.
 		if (file.delete()) {
 			return true;
@@ -761,13 +764,13 @@ public abstract class DocumentActivity extends AppCompatActivity
 			throws WritePermissionException
 	{
 		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
-		if (!hasPermission(uri))
-		{
-			requestWritePermission();
-			throw new WritePermissionException(
-					"Write permission not found.  This indicates a SAF write permission was requested.  " +
-					"The app should store any parameters necessary to resume write here.");
-		}
+//		if (!hasPermission(uri))
+//		{
+//			requestWritePermission();
+//			throw new WritePermissionException(
+//					"Write permission not found.  This indicates a SAF write permission was requested.  " +
+//					"The app should store any parameters necessary to resume write here.");
+//		}
 
 		if (!target.exists())
 		{
@@ -822,7 +825,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 			}
 		}
 
-		if (!hasPermission(uri) || !target.canWrite())
+		// If we can't write and don't have permission yet
+		// It's possible we can write without permission, so don't rely on just permission
+		if (!target.canWrite() && !hasPermission(uri))
 		{
 			throw new WritePermissionException(
 					"Write permission not found.  This indicates a SAF write permission was requested.  " +
@@ -876,15 +881,14 @@ public abstract class DocumentActivity extends AppCompatActivity
 		if (FileUtil.isFileScheme(uri))
 		{
 			File f = new File(uri.getPath());
-			File parent = f.getParentFile();
-			if (f.canWrite())
-				return Uri.fromFile(f);
+
 			while (f != null && !f.canWrite())
 			{
-				f = f.getParentFile();
 				if (f.canWrite())
 					return Uri.fromFile(f);
+				f = f.getParentFile();
 			}
+			return null;
 		}
 		else
 		{
