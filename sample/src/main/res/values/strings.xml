@@ -8,7 +8,11 @@
 	<string name="delete">Delete Test Files</string>
 	<string name="deleteInfo">The will cleanup the files created in the test.</string>
 	<string name="create">Create Test Files</string>
-	<string name="createInfo">This will create two test files demonstrating the basic methodology of the library.</string>
+	<string name="createInfo">This will create test files demonstrating the basic methodology of the library.</string>
+	<string name="request">Request Write Permission</string>
+	<string name="requestInfo">This will open the SAF to request permission.  This is required to determine test location.</string>
+	<string name="revoke">Optional: Revoke Permission</string>
+	<string name="revokeInfo">This will revoke permission (like a user manually did so in settings) to demonstrate the automatic request feature.</string>
 
 	<string name="startUnmanaged">Start UNMANAGED Instance</string>
 	<string name="startUnmanagedInfo">This will start an instance that DOES NOT manage runtime permissions. This instance will fail to write on 6.0+ unless you manually change the settings.  It should work the same as MANAGED on 5.1 and below.</string>

@@ -13,8 +13,8 @@
 	<Button
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="@string/create"
-		android:id="@+id/buttonCreate"
+		android:text="@string/request"
+		android:id="@+id/buttonRequest"
 		android:layout_alignParentTop="true"
 		android:layout_alignParentStart="true"
 		android:layout_alignParentEnd="true"/>
@@ -23,17 +23,17 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:textAppearance="?android:attr/textAppearanceMedium"
-		android:text="@string/createInfo"
+		android:text="@string/requestInfo"
 		android:id="@+id/textView"
-		android:layout_below="@+id/buttonCreate"
+		android:layout_below="@+id/buttonRequest"
 		android:layout_alignParentStart="true"
 		android:layout_alignParentEnd="true"/>
 
 	<Button
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="@string/delete"
-		android:id="@+id/buttonDelete"
+		android:text="@string/revoke"
+		android:id="@+id/buttonRevoke"
 		android:layout_below="@+id/textView"
 		android:layout_alignParentStart="true"
 		android:layout_alignEnd="@+id/textView"/>
@@ -42,9 +42,48 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:textAppearance="?android:attr/textAppearanceMedium"
-		android:text="@string/deleteInfo"
+		android:text="@string/revokeInfo"
 		android:id="@+id/textView2"
-		android:layout_below="@+id/buttonDelete"
+		android:layout_below="@+id/buttonRevoke"
 		android:layout_alignParentStart="true"
 		android:layout_alignParentEnd="true"/>
+
+	<Button
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/create"
+		android:id="@+id/buttonCreate"
+		android:layout_below="@+id/textView2"
+		android:layout_centerHorizontal="true"/>
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textAppearance="?android:attr/textAppearanceMedium"
+		android:text="@string/createInfo"
+		android:id="@+id/textView3"
+		android:layout_alignParentStart="true"
+		android:layout_alignParentEnd="true"
+		android:layout_below="@+id/buttonCreate"
+		android:layout_centerHorizontal="true"/>
+
+	<Button
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/delete"
+		android:id="@+id/buttonDelete"
+		android:layout_alignParentStart="true"
+		android:layout_below="@+id/textView3"
+		android:layout_centerHorizontal="true"/>
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textAppearance="?android:attr/textAppearanceMedium"
+		android:text="@string/deleteInfo"
+		android:id="@+id/textView4"
+		android:layout_alignParentStart="true"
+		android:layout_alignParentEnd="true"
+		android:layout_below="@+id/buttonDelete"
+		android:layout_centerHorizontal="true"/>
 </RelativeLayout>

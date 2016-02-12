@@ -35,14 +35,36 @@ public class UsefulDocumentFile
         return new UsefulDocumentFile(c, DocumentFile.fromFile(file));
     }
 
+	/**
+     * Generates a {@link UsefulDocumentFile} from the given uri.
+     *
+     * Note: File-based uris are not supported in 4.4+!
+     * @param c context
+     * @param uri uri
+     * @return
+     * @throws IllegalArgumentException If the uri is unrecognized or file-based in 4.4+.
+     */
     public static UsefulDocumentFile fromUri(Context c, Uri uri)
     {
+        // TODO: Should probably check the DF value and return null if it is null to be clear.
         if (FileUtil.isFileScheme(uri))
+        {
+            if (Util.hasKitkat())
+            {
+                /*  Although not documented file-based DocumentFiles are entirely unsupported
+                    in 4.4+.  They are there solely for backwards compatibility.  To avoid
+                    any confusion on the matter we throw an exception here.*/
+                 throw new IllegalArgumentException("File-based DocumentFile is unsupported in 4.4+.");
+            }
             return new UsefulDocumentFile(c, DocumentFile.fromFile(new File(uri.getPath())));
+        }
+        /** It's important we retain tree because TreeDocumentFile are way more useful
+         *  for ex. SingleDocumentFile cannot createDirectory or createFile even it represents
+         *  a directory */
+        else if (hasTreeDocumentId(uri))
+            return new UsefulDocumentFile(c, DocumentFile.fromTreeUri(c, uri));
         else if (DocumentsContract.isDocumentUri(c, uri))
             return new UsefulDocumentFile(c, DocumentFile.fromSingleUri(c, uri));
-        else if (isTreeUri(uri))
-            return new UsefulDocumentFile(c, DocumentFile.fromTreeUri(c, uri));
         else
             throw new IllegalArgumentException("Invalid URI: " + uri);
     }
@@ -118,7 +140,8 @@ public class UsefulDocumentFile
     protected UsefulDocumentFile getParentDocument()
     {
         Uri uri = mDocument.getUri();
-        // Files need to be handled separately
+        // TODO: Since file-based DF are <4.4 only, this is likely just an artifact of testing files
+        // on 5.0+ which won't work anyway, double check
         if (FileUtil.isFileScheme(uri))
         {
             File f = new File(uri.getPath());
@@ -153,13 +176,45 @@ public class UsefulDocumentFile
         String path = TextUtils.join("/", parentParts);
         String parentId = createNewDocumentId(documentId, path);
 
-        Uri parentUri = DocumentsContract.buildTreeDocumentUri(uri.getAuthority(), parentId);
+        Uri parentUri;
+        if (DocumentsContract.isDocumentUri(mContext, uri))
+        {
+            /** It's important we retain tree because TreeDocumentFile are way more useful
+             *  for ex. SingleDocumentFile cannot createDirectory or createFile even it represents
+             *  a directory */
+            if (hasTreeDocumentId(uri))
+            {
+                parentUri = DocumentsContract.buildDocumentUriUsingTree(uri, parentId);
+            }
+            else
+            {
+                parentUri = DocumentsContract.buildDocumentUri(uri.getAuthority(), parentId);
+            }
+        }
+        else
+        {
+            parentUri = DocumentsContract.buildTreeDocumentUri(uri.getAuthority(), parentId);
+        }
         return UsefulDocumentFile.fromUri(mContext, parentUri);
     }
 
     public static boolean isTreeUri(Uri uri) {
         final List<String> paths = uri.getPathSegments();
         return (paths.size() == 2 && PATH_TREE.equals(paths.get(0)));
+    }
+
+    // From DocumentsContract but return null instead of throw
+    public static String getTreeDocumentId(Uri uri) {
+        final List<String> paths = uri.getPathSegments();
+        if (paths.size() >= 2 && PATH_TREE.equals(paths.get(0))) {
+            return paths.get(1);
+        }
+        return null;
+    }
+
+    // From DocumentsContract but return null instead of throw
+    public static boolean hasTreeDocumentId(Uri uri) {
+        return getTreeDocumentId(uri) != null;
     }
 
     public boolean canRead()
@@ -172,9 +227,12 @@ public class UsefulDocumentFile
         return mDocument.canWrite();
     }
 
-    public DocumentFile createDirectory(String displayName)
+    public UsefulDocumentFile createDirectory(String displayName)
     {
-        return mDocument.createDirectory(displayName);
+        DocumentFile directory = mDocument.createDirectory(displayName);
+        if (directory == null)
+            return null;
+        return new UsefulDocumentFile(mContext, directory);
     }
 
     public DocumentFile createFile(String mimeType, String displayName)
@@ -266,5 +324,21 @@ public class UsefulDocumentFile
     public int hashCode()
     {
         return mDocument.hashCode();
+    }
+
+    /**
+     * Returns a uri to a child file within a folder.  This can be used to get an assumed uri
+     * to a child within a folder.  This avoids heavy calls to DocumentFile.listFiles or
+     * write-locked createFile
+     *
+     * This will only work with a uri that is an heriacrchical tree similar to SCHEME_FILE
+     * @param hierarchicalTreeUri folder to install into
+     * @param filename filename of child file
+     * @return Uri to the child file
+     */
+    public static Uri getChildUri(Uri hierarchicalTreeUri, String filename)
+    {
+        String childUriString = hierarchicalTreeUri.toString() + URL_SLASH + filename;
+        return Uri.parse(childUriString);
     }
 }

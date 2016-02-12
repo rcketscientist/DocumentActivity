@@ -39,7 +39,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 {
 	private static final String TAG = DocumentActivity.class.getSimpleName();
 	private static final int REQUEST_PREFIX = 256;  // Permissions have 8-bit limit
-	private static final int REQUEST_CODE_WRITE_PERMISSION = REQUEST_PREFIX - 1;
+	protected static final int REQUEST_CODE_WRITE_PERMISSION = REQUEST_PREFIX - 1;
 	private static final int REQUEST_STORAGE_PERMISSION = REQUEST_PREFIX - 2;
 
 	private static final String PREFERENCE_SKIP_WRITE_WARNING = "skip_write_warning";
@@ -809,8 +809,14 @@ public abstract class DocumentActivity extends AppCompatActivity
 					}
 
 					UsefulDocumentFile innerDirectory = hierarchyTree.pop();
-					outerDirectory.createDirectory(innerDirectory.getName());
-					outerDirectory = innerDirectory;
+					outerDirectory = outerDirectory.createDirectory(innerDirectory.getName());
+					if (outerDirectory == null)
+					{
+						requestWritePermission();
+						throw new WritePermissionException(
+								"Write permission not found.  This indicates a SAF write permission was requested.  " +
+								"The app should store any parameters necessary to resume write here.");
+					}
 				}
 			}
 
@@ -1015,7 +1021,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 					Uri treeUri = data.getData();
 					getContentResolver().takePersistableUriPermission(treeUri,
 							Intent.FLAG_GRANT_READ_URI_PERMISSION |
-									Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+							Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
 					updatePermissions();
 

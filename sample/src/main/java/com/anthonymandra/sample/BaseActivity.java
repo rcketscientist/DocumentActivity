@@ -1,20 +1,21 @@
 package com.anthonymandra.sample;
 
 import android.annotation.TargetApi;
+import android.content.Intent;
+import android.content.UriPermission;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
-import android.util.Log;
 import android.view.View;
 
 import com.anthonymandra.framework.DocumentActivity;
 import com.anthonymandra.framework.UsefulDocumentFile;
 import com.anthonymandra.framework.Util;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,9 +27,12 @@ public abstract class BaseActivity extends DocumentActivity
 {
 	private static final String TAG = DocumentActivity.class.getSimpleName();
 
-	private final static String filename1 = "test1.txt";
-	private final static String filename2 = "test2.txt";
 	private final static String testFolderName = "_documentTest";
+
+	private final static String documentId1 = testFolderName + "/" + "test1.txt";
+	private final static String documentId2 = testFolderName + "/" + "test2.txt";
+
+	private static Uri test1Uri, test2Uri;
 
 	private enum WriteActions
 	{
@@ -58,6 +62,51 @@ public abstract class BaseActivity extends DocumentActivity
 				cleanUpTestFiles();
 			}
 		});
+		findViewById(R.id.buttonRequest).setOnClickListener(new View.OnClickListener()
+		{
+			@Override
+			public void onClick(View v)
+			{
+				requestWritePermission();
+			}
+		});
+		findViewById(R.id.buttonRevoke).setOnClickListener(new View.OnClickListener()
+		{
+			@Override
+			public void onClick(View v)
+			{
+				revokePermission();
+			}
+		});
+	}
+
+	@TargetApi(Build.VERSION_CODES.KITKAT)
+	@Override
+	protected void onActivityResult(final int requestCode, int resultCode, final Intent data)
+	{
+		super.onActivityResult(requestCode, resultCode, data);
+		switch (requestCode)
+		{
+			// Grab the selected permission so we can generate valid test files paths
+			case REQUEST_CODE_WRITE_PERMISSION:
+				if (resultCode == RESULT_OK && data != null)
+				{
+					String root = DocumentsContract.getTreeDocumentId(data.getData());
+					test1Uri = DocumentsContract.buildDocumentUriUsingTree(data.getData(), root + documentId1);
+					test2Uri = DocumentsContract.buildDocumentUriUsingTree(data.getData(), root + documentId2);
+				}
+				break;
+		}
+	}
+
+	protected void revokePermission()
+	{
+		for (UriPermission p : getContentResolver().getPersistedUriPermissions())
+		{
+			getContentResolver().releasePersistableUriPermission(p.getUri(),
+					Intent.FLAG_GRANT_READ_URI_PERMISSION |
+					Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+		}
 	}
 
 	protected void createTestFiles()
@@ -81,85 +130,18 @@ public abstract class BaseActivity extends DocumentActivity
 	{
 		// I emphasize Uri here because 6.0 USB support is Uri ONLY, no File(s) at all!
 		// As such if you support 6.0 you must rely on Uris throughout your app
-		List<Uri> testUri = new ArrayList<>();
-
-		List<File> testDirs = getTestDirs();
-		for (File testFolder: testDirs)
-		{
-			testUri.add(Uri.fromFile(new File(testFolder, filename1)));
-			testUri.add(Uri.fromFile(new File(testFolder, filename2)));
-		}
-
-		return testUri;
-	}
-
-	/**
-	 * Get a list of external SD card paths. (Kitkat or higher.)
-	 *
-	 * @return A list of external SD card paths.
-	 */
-	@TargetApi(Build.VERSION_CODES.KITKAT)
-	protected String[] getExtSdCardPaths() {
-		List<String> paths = new ArrayList<String>();
-		for (File file : getExternalFilesDirs("external")) {
-			if (file != null && !file.equals(getExternalFilesDir("external"))) {
-				int index = file.getAbsolutePath().lastIndexOf("/Android/data");
-				if (index < 0) {
-					Log.w(TAG, "Unexpected external file dir: " + file.getAbsolutePath());
-				}
-				else {
-					String path = file.getAbsolutePath().substring(0, index);
-					try {
-						path = new File(path).getCanonicalPath();
-					}
-					catch (IOException e) {
-						// Keep non-canonical path.
-					}
-					paths.add(path);
-				}
-			}
-		}
-		return paths.toArray(new String[0]);
-	}
-
-	/**
-	 * Gets any official external mounts points.  At least one should require write permission.
-	 * @return
-     */
-	private List<File> getTestDirs()
-	{
-		List<File> testDirs = new ArrayList<>();
-
-		// Get all external storage file folders with which we have automatic permission
-		for (File file : getExternalFilesDirs("external")) {
-			if (file != null)
-			{
-				// truncate at the Android data branch to get the root which may not have permission
-				int index = file.getAbsolutePath().lastIndexOf("/Android/data");
-				if (index < 0)
-				{
-					Log.w(TAG, "Unexpected external file dir: " + file.getAbsolutePath());
-				}
-				else
-				{
-					String path = file.getAbsolutePath().substring(0, index);
-					try {
-						path = new File(path).getCanonicalPath();
-					}
-					catch (IOException e) {
-						// Keep non-canonical path.
-					}
-					testDirs.add(new File(path, testFolderName));
-				}
-			}
-		}
-
-		return testDirs;
+		List<Uri> testFiles = new ArrayList<>();
+		testFiles.add(test1Uri);
+		testFiles.add(test2Uri);
+		return testFiles;
 	}
 
 	@Override
 	protected void onResumeWriteAction(Enum callingMethod, Object[] callingParameters)
 	{
+		if (callingMethod == null)
+			return;
+
 		switch ((WriteActions)callingMethod)
 		{
 			case WRITE:
@@ -182,24 +164,6 @@ public abstract class BaseActivity extends DocumentActivity
 		@Override
 		protected Void doInBackground(Object... params)
 		{
-			// This is lazy, but it's for simplicity's sake in the sample
-//			File testFolder = getTestDirs();
-//			if (!testFolder.exists())
-//			{
-//				try
-//				{
-//					setWriteResume(WriteActions.WRITE, params);
-//					mkdir(testFolder);
-//				}
-//				catch (WritePermissionException e)
-//				{
-//					Snackbar.make(findViewById(android.R.id.content), R.string.writeRequired, Snackbar.LENGTH_INDEFINITE);
-//					// If we couldn't create the test folder DocumentActivity will request
-//					// permission and resume this action using the wiring in onResumeWriteAction
-//					return null;
-//				}
-//			}
-
 			List<Uri> totalFiles = (List<Uri>) params[0];
 			List<Uri> remainingFiles = new ArrayList<>(totalFiles);
 			String message1 = getString(R.string.message);
@@ -255,14 +219,17 @@ public abstract class BaseActivity extends DocumentActivity
 		protected Void doInBackground(Void... params)
 		{
 			setWriteResume(WriteActions.DELETE, null);
-			List<File> testFolders = getTestDirs();
 			try
 			{
-				for (File testFolder: testFolders)
-				{
-					UsefulDocumentFile testDoc = getDocumentFile(testFolder, true, false);
-					testDoc.delete();
-				}
+				UsefulDocumentFile test = getDocumentFile(getTestFileList().get(0), false, false);
+				test.getParentFile().delete();
+
+//				for (Uri testFile: getTestFileList())
+//				{
+//					UsefulDocumentFile testDoc = getDocumentFile(testFile, true, false);
+//					testDoc.delete();
+//				}
+
 				Snackbar.make(findViewById(android.R.id.content), R.string.deleted, Snackbar.LENGTH_INDEFINITE);
 			}
 			catch (WritePermissionException e)
