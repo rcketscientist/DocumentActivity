@@ -91,6 +91,7 @@ public abstract class BaseActivity extends DocumentActivity
 			case REQUEST_CODE_WRITE_PERMISSION:
 				if (resultCode == RESULT_OK && data != null)
 				{
+					Snackbar.make(findViewById(android.R.id.content), data.getDataString(), Snackbar.LENGTH_SHORT).show();
 					String root = DocumentsContract.getTreeDocumentId(data.getData());
 					test1Uri = DocumentsContract.buildDocumentUriUsingTree(data.getData(), root + documentId1);
 					test2Uri = DocumentsContract.buildDocumentUriUsingTree(data.getData(), root + documentId2);
@@ -101,11 +102,20 @@ public abstract class BaseActivity extends DocumentActivity
 
 	protected void revokePermission()
 	{
+		// TODO: This does not stop writing once permission was granted...needs more testing might be an android bug
 		for (UriPermission p : getContentResolver().getPersistedUriPermissions())
 		{
 			getContentResolver().releasePersistableUriPermission(p.getUri(),
 					Intent.FLAG_GRANT_READ_URI_PERMISSION |
 					Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+		}
+		if (getContentResolver().getPersistedUriPermissions().size() == 0)
+		{
+			Snackbar.make(findViewById(android.R.id.content), R.string.revokeSuccess, Snackbar.LENGTH_SHORT).show();
+		}
+		else
+		{
+			Snackbar.make(findViewById(android.R.id.content), R.string.revokeFail, Snackbar.LENGTH_SHORT).show();
 		}
 	}
 
@@ -185,10 +195,14 @@ public abstract class BaseActivity extends DocumentActivity
 
 					// Remove the processed file
 					remainingFiles.remove(destination);
+					Snackbar.make(findViewById(android.R.id.content),
+							destinationDoc.getName() + " " + getString(R.string.created),
+							Snackbar.LENGTH_SHORT).show();
+
 				}
 				catch (WritePermissionException e)
 				{
-					Snackbar.make(findViewById(android.R.id.content), R.string.writeRequired, Snackbar.LENGTH_INDEFINITE);
+					Snackbar.make(findViewById(android.R.id.content), R.string.writeRequired, Snackbar.LENGTH_SHORT).show();
 					// If we couldn't create the test file DocumentActivity will request
 					// permission and resume this action using the wiring in onResumeWriteAction
 					return null;
@@ -207,7 +221,7 @@ public abstract class BaseActivity extends DocumentActivity
 				}
 			}
 
-			Snackbar.make(findViewById(android.R.id.content), R.string.filesCreated, Snackbar.LENGTH_INDEFINITE);
+			Snackbar.make(findViewById(android.R.id.content), R.string.filesCreated, Snackbar.LENGTH_SHORT).show();
 			clearWriteResume(); // Make sure to clear the pending write task on success!
 			return null;
 		}
@@ -230,11 +244,11 @@ public abstract class BaseActivity extends DocumentActivity
 //					testDoc.delete();
 //				}
 
-				Snackbar.make(findViewById(android.R.id.content), R.string.deleted, Snackbar.LENGTH_INDEFINITE);
+				Snackbar.make(findViewById(android.R.id.content), R.string.deleted, Snackbar.LENGTH_SHORT).show();
 			}
 			catch (WritePermissionException e)
 			{
-				Snackbar.make(findViewById(android.R.id.content), R.string.writeRequired, Snackbar.LENGTH_INDEFINITE);
+				Snackbar.make(findViewById(android.R.id.content), R.string.writeRequired, Snackbar.LENGTH_SHORT).show();
 				return null;
 			}
 			clearWriteResume(); // Make sure to clear the pending write task on success!

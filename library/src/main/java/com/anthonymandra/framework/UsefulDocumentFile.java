@@ -6,8 +6,9 @@ import android.content.Intent;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.support.v4.provider.DocumentFile;
-import android.support.v4.provider.DocumentsContractApi19;
-import android.support.v4.provider.DocumentsContractApi21;
+
+import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
+import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;

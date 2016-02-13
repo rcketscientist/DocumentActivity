@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package android.support.v4.provider;
+package com.anthonymandra.support.v4.provider;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -26,6 +26,9 @@ import android.provider.DocumentsContract;
 import android.text.TextUtils;
 import android.util.Log;
 
+/**
+ * This is a direct copy of android.support.v4.provider.DocumentsContractApi19
+ */
 public class    DocumentsContractApi19 {
     private static final String TAG = "DocumentFile";
 
