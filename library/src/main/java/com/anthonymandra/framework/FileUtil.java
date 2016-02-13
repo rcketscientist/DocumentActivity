@@ -432,15 +432,15 @@ public class FileUtil
      */
 	public static UsefulDocumentFile getDocumentFile(Context c, Uri uri)
 	{
-		if (isFileScheme(uri))
-		{
-			return UsefulDocumentFile.fromFile(c, new File(uri.getPath()));
-		}
-		// TODO: Confirm if other cases need to be handled
-		else
-		{
+//		if (isFileScheme(uri))
+//		{
+//			return UsefulDocumentFile.fromFile(c, new File(uri.getPath()));
+//		}
+//		// TODO: Confirm if other cases need to be handled
+//		else
+//		{
 			return UsefulDocumentFile.fromUri(c, uri);
-		}
+//		}
 	}
 
 

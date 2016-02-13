@@ -624,8 +624,8 @@ public abstract class DocumentActivity extends AppCompatActivity
 	{
 		boolean totalSuccess = true;
 		UsefulDocumentFile folderDoc = getLollipopDocument(folder, true, true);
-		DocumentFile[] children = folderDoc.listFiles();
-		for (DocumentFile child : children)
+		UsefulDocumentFile[] children = folderDoc.listFiles();
+		for (UsefulDocumentFile child : children)
 		{
 			if (!child.isDirectory())
 			{
@@ -740,7 +740,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 		// First try the normal way
 		if (FileUtil.isWritable(file))
 		{
-			return UsefulDocumentFile.fromFile(this, file);
+			return UsefulDocumentFile.fromUri(this, Uri.fromFile(file));
 		}
 		else if (Util.hasLollipop())
 		{
@@ -827,7 +827,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 			}
 			else
 			{
-				parent.createFile(null, target.getName());
+				UsefulDocumentFile f = parent.createFile(null, target.getName());
 			}
 		}
 
