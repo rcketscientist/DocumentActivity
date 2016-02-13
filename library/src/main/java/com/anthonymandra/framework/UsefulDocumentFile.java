@@ -92,6 +92,18 @@ public class UsefulDocumentFile
         return new UsefulDocumentFile(null, c, uri);
     }
 
+    /**
+     * Return the parent file of this document. Only defined inside of the
+     * user-selected tree; you can never escape above the top of the tree.
+     * <p>
+     * This method is a significant enhancement over the official DocumentFile
+     * variants in that it will attempt to determine the parent given the
+     * hierarchical tree within the uri itself.
+     * <p>
+     * Note: This may not be the <i>only</i> parent as Documents may have multiple parents.
+     * This will simply attempt to acquire the parent used to generate the tree.
+     * For filesystem use this is sufficient.
+     */
     public UsefulDocumentFile getParentFile()
     {
         if (mParent != null)
@@ -150,19 +162,7 @@ public class UsefulDocumentFile
     {
         return getRoot(documentId) + ":" + path;
     }
-
-    /**
-     * Return the parent file of this document. Only defined inside of the
-     * user-selected tree; you can never escape above the top of the tree.
-     * <p>
-     * This method is a significant enhancement over the official DocumentFile
-     * variants in that it will attempt to determine the parent given the
-     * hierarchical tree within the uri itself.
-     * <p>
-     * Note: This may not be the <i>only</i> parent as Documents may have multiple parents.
-     * This will simply attempt to acquire the parent used to generate the tree.
-     * For filesystem use this is sufficient.
-     */
+    
     protected UsefulDocumentFile getParentDocument()
     {
         if (FileUtil.isFileScheme(mUri))
