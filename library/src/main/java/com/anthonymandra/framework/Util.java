@@ -115,135 +115,80 @@ public class Util
         }
     }
 
+    // copy from InputStream
+    //-----------------------------------------------------------------------
+    private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
     /**
-     * Get a usable cache directory (external if available, internal otherwise).
+     * Copy bytes from an <code>InputStream</code> to an
+     * <code>OutputStream</code>.
+     * <p>
+     * This method buffers the input internally, so there is no need to use a
+     * <code>BufferedInputStream</code>.
+     * <p>
+     * Large streams (over 2GB) will return a bytes copied value of
+     * <code>-1</code> after the copy has completed since the correct
+     * number of bytes cannot be returned as an int. For large streams
+     * use the <code>copyLarge(InputStream, OutputStream)</code> method.
      *
-     * @param context    The context to use
-     * @param uniqueName A unique directory name to append to the cache dir
-     * @return The cache dir
+     * @param input  the <code>InputStream</code> to read from
+     * @param output  the <code>OutputStream</code> to write to
+     * @return the number of bytes copied
+     * @throws NullPointerException if the input or output is null
+     * @throws IOException if an I/O error occurs
+     * @throws ArithmeticException if the byte count is too large
+     * @since Commons IO 1.1
      */
-    public static File getDiskCacheDir(Context context, String uniqueName)
-    {
-        // Check if media is mounted or storage is built-in, if so, try and use external cache dir
-        // otherwise use internal cache dir
-        File cache = null;
-        if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) || !isExternalStorageRemovable())
-        {
-            cache = context.getExternalCacheDir();
+    public static int copy(InputStream input, OutputStream output) throws IOException {
+        long count = copyLarge(input, output);
+        if (count > Integer.MAX_VALUE) {
+            return -1;
         }
-        if (cache == null)
-            cache = context.getCacheDir();
-
-        return new File(cache, uniqueName);
-    }
-
-    /**
-     * Check if external storage is built-in or removable.
-     *
-     * @return True if external storage is removable (like an SD card), false otherwise.
-     */
-    @TargetApi(9)
-    public static boolean isExternalStorageRemovable()
-    {
-        if (Util.hasGingerbread())
-        {
-            return Environment.isExternalStorageRemovable();
-        }
-        return true;
+        return (int) count;
     }
 
     /**
-     * Check how much usable space is available at a given path.
+     * Copy bytes from a large (over 2GB) <code>InputStream</code> to an
+     * <code>OutputStream</code>.
+     * <p>
+     * This method buffers the input internally, so there is no need to use a
+     * <code>BufferedInputStream</code>.
      *
-     * @param path The path to check
-     * @return The space available in bytes
+     * @param input  the <code>InputStream</code> to read from
+     * @param output  the <code>OutputStream</code> to write to
+     * @return the number of bytes copied
+     * @throws NullPointerException if the input or output is null
+     * @throws IOException if an I/O error occurs
+     * @since Commons IO 1.3
      */
-    @TargetApi(9)
-    public static long getUsableSpace(File path)
-    {
-        if (Util.hasGingerbread())
-        {
-            return path.getUsableSpace();
+    public static long copyLarge(InputStream input, OutputStream output)
+            throws IOException {
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        long count = 0;
+        int n = 0;
+        while (-1 != (n = input.read(buffer))) {
+            output.write(buffer, 0, n);
+            count += n;
         }
-        final StatFs stats = new StatFs(path.getPath());
-        return (long) stats.getBlockSize() * (long) stats.getAvailableBlocks();
+        return count;
     }
 
-    public static String swapExtention(String filename, String ext)
-    {
-        return filename.replaceFirst("[.][^.]+$", "") + "." + ext;
-    }
-
-    public static boolean isTabDelimited(Context c, Uri uri)
-    {
-        int numberOfLevels = 0;
-        BufferedReader readbuffer = null;
-        try
-        {
-            ParcelFileDescriptor pfd = c.getContentResolver().openFileDescriptor(uri, "r");
-            readbuffer = new BufferedReader(new FileReader(pfd.getFileDescriptor()));
-            String line;
-            while ((line = readbuffer.readLine()) != null)
-            {
-                String tokens[] = line.split("\t");
-                numberOfLevels = Math.max(numberOfLevels, tokens.length);
-            }
-        } catch (IOException e)
-        {
-            return false;
-        }
-        finally
-        {
-            Util.closeSilently(readbuffer);
-        }
-        return numberOfLevels > 0;
-    }
-
-    public static boolean isTabDelimited(String filepath)
-    {
-        int numberOfLevels = 0;
-        BufferedReader readbuffer = null;
-        try
-        {
-            readbuffer = new BufferedReader(new FileReader(filepath));
-            String line;
-            while ((line = readbuffer.readLine()) != null)
-            {
-                String tokens[] = line.split("\t");
-                numberOfLevels = Math.max(numberOfLevels, tokens.length);
-            }
-        } catch (IOException e)
-        {
-            return false;
-        }
-        finally
-        {
-            Util.closeSilently(readbuffer);
-        }
-        return numberOfLevels > 0;
-    }
-
-    private static boolean endsWith(String[] extensions, String path)
-    {
-        for (String ext : extensions)
-        {
-            if (path.toLowerCase().endsWith(ext.toLowerCase()))
-                return true;
-        }
-        return false;
-    }
-
-    public static byte[] getBytes(InputStream inputStream) throws IOException
-    {
-        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
-
-        int len = 0;
-        while ((len = inputStream.read(buffer)) != -1) {
-            byteBuffer.write(buffer, 0, len);
-        }
-        return byteBuffer.toByteArray();
+    // read toByteArray
+    //-----------------------------------------------------------------------
+    /**
+     * Get the contents of an <code>InputStream</code> as a <code>byte[]</code>.
+     * <p>
+     * This method buffers the input internally, so there is no need to use a
+     * <code>BufferedInputStream</code>.
+     *
+     * @param input  the <code>InputStream</code> to read from
+     * @return the requested byte array
+     * @throws NullPointerException if the input is null
+     * @throws IOException if an I/O error occurs
+     */
+    public static byte[] toByteArray(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        copy(input, output);
+        return output.toByteArray();
     }
 
     /**

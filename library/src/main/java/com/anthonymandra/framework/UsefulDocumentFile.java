@@ -204,7 +204,7 @@ public class UsefulDocumentFile
              *  fail to gain write permission! */
             // TODO: Doubtful, but can you game document uris to write where you're not allowed
             // using a known valid tree?
-            if (hasTreeDocumentId(mUri)) // has tree segment
+            if (DocumentUtil.hasTreeDocumentId(mUri)) // has tree segment
             {
                 parentUri = DocumentsContract.buildDocumentUriUsingTree(mUri, parentId);
             }
@@ -223,25 +223,6 @@ public class UsefulDocumentFile
     public static boolean isTreeUri(Uri uri) {
         final List<String> paths = uri.getPathSegments();
         return (paths.size() == 2 && PATH_TREE.equals(paths.get(0)));
-    }
-
-    /**
-     * Extract the via {@link DocumentsContract.Document#COLUMN_DOCUMENT_ID} from the given URI.
-     * From {@link DocumentsContract} but return null instead of throw
-     */
-    public static String getTreeDocumentId(Uri uri) {
-        final List<String> paths = uri.getPathSegments();
-        if (paths.size() >= 2 && PATH_TREE.equals(paths.get(0))) {
-            return paths.get(1);
-        }
-        return null;
-    }
-
-	/**
-     * True if the uri has a tree segment
-     */
-    public static boolean hasTreeDocumentId(Uri uri) {
-        return getTreeDocumentId(uri) != null;
     }
 
     /**
@@ -347,7 +328,9 @@ public class UsefulDocumentFile
     }
 
     /**
-     * Return the display name of this document.
+     * Return the display name of this document.  Attempts to parse the name from the uri
+     * when {@link DocumentsContractApi19#getName(Context, Uri)} fails.  It appears to fail
+     * on hidden folders, possibly others.
      *
      * @see android.provider.DocumentsContract.Document#COLUMN_DISPLAY_NAME
      */

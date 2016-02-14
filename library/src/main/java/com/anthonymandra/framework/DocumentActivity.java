@@ -223,7 +223,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 			inStream = FileUtil.getInputStream(this, source);//getContentResolver().openInputStream(source);//new FileInputStream(sourcePfd.getFileDescriptor());
 			outStream = getContentResolver().openOutputStream(target);
 
-			FileUtil.copy(inStream, outStream);
+			Util.copy(inStream, outStream);
 		}
 		catch(ArithmeticException e)
 		{
