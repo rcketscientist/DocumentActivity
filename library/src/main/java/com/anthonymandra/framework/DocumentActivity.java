@@ -203,11 +203,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 	public boolean copyFile(final Uri source, final Uri target)
 			throws IOException
 	{
-//		ParcelFileDescriptor sourcePfd = null;
 		InputStream inStream = null;
 		OutputStream outStream = null;
 
-//		UsefulDocumentFile sourceDoc = UsefulDocumentFile.fromUri(this, source);
 		UsefulDocumentFile destinationDoc = getDocumentFile(target, false, true);
 		if (!destinationDoc.exists())
 		{
@@ -222,7 +220,6 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		try
 		{
-//			sourcePfd = FileUtil.getParcelFileDescriptor(this, source, "r");
 			inStream = FileUtil.getInputStream(this, source);//getContentResolver().openInputStream(source);//new FileInputStream(sourcePfd.getFileDescriptor());
 			outStream = getContentResolver().openOutputStream(target);
 
@@ -238,7 +235,6 @@ public abstract class DocumentActivity extends AppCompatActivity
 		}
 		finally
 		{
-//			Util.closeSilently(sourcePfd);
 			Util.closeSilently(inStream);
 			Util.closeSilently(outStream);
 		}
@@ -277,7 +273,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 				if (Util.hasLollipop())
 				{
 					// Storage Access Framework
-					UsefulDocumentFile targetDocument = getLollipopDocument(target, false, true);
+					UsefulDocumentFile targetDocument = getDocumentFile(target, false, true);
 					if (targetDocument == null)
 						return false;
 					outStream =
@@ -328,7 +324,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 		}
 		else
 		{
-			UsefulDocumentFile document = getLollipopDocument(file, false, true);
+			UsefulDocumentFile document = getDocumentFile(file, false, true);
 			if (document == null)
 				return false;
 			return document.delete();
@@ -354,7 +350,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		// Try with Storage Access Framework.
 		if (Util.hasLollipop()) {
-			UsefulDocumentFile document = getLollipopDocument(file, false, true);
+			UsefulDocumentFile document = getDocumentFile(file, false, true);
 			if (document == null)
 				return false;
 			return document.delete();
@@ -434,7 +430,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		// Try the Storage Access Framework if it is just a rename within the same parent folder.
 		if (Util.hasLollipop() && source.getParent().equals(target.getParent())) {
-			UsefulDocumentFile document = getLollipopDocument(source, true, true);
+			UsefulDocumentFile document = getDocumentFile(source, true, true);
 			if (document == null)
 				return false;
 			if (document.renameTo(target.getName())) {
@@ -493,7 +489,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		// Try with Storage Access Framework.
 		if (Util.hasLollipop()) {
-			UsefulDocumentFile document = getLollipopDocument(folder, true, true);
+			UsefulDocumentFile document = getDocumentFile(folder, true, true);
 			if (document == null)
 				return false;
 			// getLollipopDocument implicitly creates the directory.
@@ -513,7 +509,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	public boolean mkdir(final Uri folder)
 			throws WritePermissionException
 	{
-		UsefulDocumentFile document = getLollipopDocument(folder, true, true);
+		UsefulDocumentFile document = getDocumentFile(folder, true, true);
 		if (document == null)
 			return false;
 		// getLollipopDocument implicitly creates the directory.
@@ -550,7 +546,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		// Try with Storage Access Framework.
 		if (Util.hasLollipop()) {
-			UsefulDocumentFile document = getLollipopDocument(folder, true, true);
+			UsefulDocumentFile document = getDocumentFile(folder, true, true);
 			if (document == null)
 				return false;
 			return document.delete();
@@ -570,7 +566,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	public boolean rmdir(final Uri folder)
 			throws WritePermissionException
 	{
-		UsefulDocumentFile folderDoc = getLollipopDocument(folder, true, true);
+		UsefulDocumentFile folderDoc = getDocumentFile(folder, true, true);
 		if (!folderDoc.exists()) {
 			return true;
 		}
@@ -623,7 +619,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 			throws WritePermissionException
 	{
 		boolean totalSuccess = true;
-		UsefulDocumentFile folderDoc = getLollipopDocument(folder, true, true);
+		UsefulDocumentFile folderDoc = getDocumentFile(folder, true, true);
 		UsefulDocumentFile[] children = folderDoc.listFiles();
 		for (UsefulDocumentFile child : children)
 		{
@@ -668,109 +664,27 @@ public abstract class DocumentActivity extends AppCompatActivity
 		return paths.toArray(new String[0]);
 	}
 
-	/**
-	 * Determine the main folder of the external SD card containing the given file.
-	 *
-	 * @param file
-	 *            the file.
-	 * @return The main folder of the external SD card containing this file, if the file is on an SD card. Otherwise,
-	 *         null is returned.
-	 */
-	@TargetApi(Build.VERSION_CODES.KITKAT)
-	public String getExtSdCardFolder(final File file) {
-		String[] extSdPaths = getExtSdCardPaths();
-		try {
-			for (int i = 0; i < extSdPaths.length; i++) {
-				if (file.getCanonicalPath().startsWith(extSdPaths[i])) {
-					return extSdPaths[i];
-				}
-			}
-		}
-		catch (IOException e) {
-			return null;
-		}
-		return null;
-	}
-
-	/**
-	 * Determine if a file is on external sd card. (Kitkat or higher.)
-	 *
-	 * @param file
-	 *            The file.
-	 * @return true if on external sd card.
-	 */
-	@TargetApi(Build.VERSION_CODES.KITKAT)
-	public boolean isOnExtSdCard(final File file) {
-		return getExtSdCardFolder(file) != null;
-	}
-
-	/**
-	 * Get a DocumentFile corresponding to the given file.  If the file does not exist, it is created.
-	 *
-	 * @param file The file.
-	 * @param isDirectory flag indicating if the file should be a directory.
-	 * @param createDirectories flag indicating if intermediate path directories should be created if not existing.
-	 * @return The DocumentFile
-	 */
-	public UsefulDocumentFile getDocumentFile(final Uri file,
-	                                    final boolean isDirectory,
-	                                    final boolean createDirectories)
-			throws WritePermissionException
-	{
-		if (FileUtil.isFileScheme(file))
-		{
-			getDocumentFile(new File(file.getPath()), isDirectory, createDirectories);
-		}
-		return getLollipopDocument(file, isDirectory, createDirectories);
-	}
-
-	/**
-	 * Get a DocumentFile corresponding to the given file.  If the file does not exist, it is created.
-	 *
-	 * @param file The file.
-	 * @param isDirectory flag indicating if the file should be a directory.
-	 * @param createDirectories flag indicating if intermediate path directories should be created if not existing.
-	 * @return The DocumentFile
-	 */
 	public UsefulDocumentFile getDocumentFile(final File file,
-	                                    final boolean isDirectory,
-	                                    final boolean createDirectories)
-			throws WritePermissionException
-	{
-		// First try the normal way
-		if (FileUtil.isWritable(file))
-		{
-			return UsefulDocumentFile.fromUri(this, Uri.fromFile(file));
-		}
-		else if (Util.hasLollipop())
-		{
-			return getLollipopDocument(file, isDirectory, createDirectories);
-		}
-		return null;
+	                                          final boolean isDirectory,
+	                                          final boolean createDirectories)
+			throws WritePermissionException {
+		return getDocumentFile(Uri.fromFile(file), isDirectory, createDirectories);
 	}
 
 	/**
-	 * Get a {@link UsefulDocumentFile} corresponding to the given file. The file is created if it
-	 * does not exist.
+	 * Get a DocumentFile corresponding to the given file.  If the file does not exist, it is created.
 	 *
-	 * @param uri The target uri.
+	 * @param uri The file.
 	 * @param isDirectory flag indicating if the file should be a directory.
 	 * @param createDirectories flag indicating if intermediate path directories should be created if not existing.
 	 * @return The DocumentFile
 	 */
-	private UsefulDocumentFile getLollipopDocument(final Uri uri,
-											 final boolean isDirectory,
-											 final boolean createDirectories)
+	public UsefulDocumentFile getDocumentFile(final Uri uri,
+	                                    final boolean isDirectory,
+	                                    final boolean createDirectories)
 			throws WritePermissionException
 	{
 		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
-//		if (!hasPermission(uri))
-//		{
-//			requestWritePermission();
-//			throw new WritePermissionException(
-//					"Write permission not found.  This indicates a SAF write permission was requested.  " +
-//					"The app should store any parameters necessary to resume write here.");
-//		}
 
 		if (!target.exists())
 		{
@@ -805,7 +719,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 						requestWritePermission();
 						throw new WritePermissionException(
 								"Write permission not found.  This indicates a SAF write permission was requested.  " +
-								"The app should store any parameters necessary to resume write here.");
+										"The app should store any parameters necessary to resume write here.");
 					}
 
 					UsefulDocumentFile innerDirectory = hierarchyTree.pop();
@@ -815,7 +729,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 						requestWritePermission();
 						throw new WritePermissionException(
 								"Write permission not found.  This indicates a SAF write permission was requested.  " +
-								"The app should store any parameters necessary to resume write here.");
+										"The app should store any parameters necessary to resume write here.");
 					}
 				}
 			}
@@ -837,30 +751,10 @@ public abstract class DocumentActivity extends AppCompatActivity
 		{
 			throw new WritePermissionException(
 					"Write permission not found.  This indicates a SAF write permission was requested.  " +
-					"The app should store any parameters necessary to resume write here.");
+							"The app should store any parameters necessary to resume write here.");
 		}
 
 		return target;
-	}
-
-	/**
-	 * Get a DocumentFile corresponding to the given file (for writing on ExtSdCard on Android 5). If the file is not
-	 * existing, it is created.
-	 *
-	 * @param file
-	 *            The file.
-	 * @param isDirectory
-	 *            flag indicating if the file should be a directory.
-	 * @param createDirectories
-	 *            flag indicating if intermediate path directories should be created if not existing.
-	 * @return The DocumentFile
-	 */
-	private UsefulDocumentFile getLollipopDocument(final File file,
-	                                         final boolean isDirectory,
-	                                         final boolean createDirectories)
-			throws WritePermissionException
-	{
-		return getLollipopDocument(Uri.fromFile(file), isDirectory, createDirectories);
 	}
 
 	/**
