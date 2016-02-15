@@ -89,6 +89,10 @@ public class UsefulDocumentFile
                     any confusion on the matter we throw an exception here. */
                  throw new IllegalArgumentException("File-based DocumentFile is unsupported in 4.4+.");
         }
+        else if (DocumentUtil.isTreeUri(uri)) // A tree uri is not useful by itself
+        {
+            uri = DocumentsContractApi21.prepareTreeUri(uri);   // Generate the document portion of uri
+        }
         return new UsefulDocumentFile(null, c, uri);
     }
 
@@ -113,39 +117,6 @@ public class UsefulDocumentFile
         return getParentDocument();
     }
 
-    protected static String getRoot(String documentId)
-    {
-        String[] parts = documentId.split(":");
-        if (parts.length > 0)
-            return parts[0];
-        return null;
-    }
-
-    protected static String[] getIdSegments(String documentId)
-    {
-        /*  usb:folder/file.ext would effectively be:
-            content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3Afolder%2Ffile.ext
-            We want to return "folder/file.ext" */
-        return documentId.split(":");
-    }
-
-    protected static String[] getPathSegments(String documentId)
-    {
-        /*  usb:folder/file.ext would effectively be:
-            content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3Afolder%2Ffile.ext
-            We want to return ["folder", "file.ext"]*/
-        String[] idParts = getIdSegments(documentId);
-        // If there's only one part it's a root
-        if (idParts.length <= 1)
-        {
-            return null;
-        }
-
-        // The last part should be the path for both document and tree uris
-        String path = idParts[idParts.length-1];
-        return path.split("/");
-    }
-
     protected String getDocumentId()
     {
         if (DocumentsContract.isDocumentUri(mContext, mUri))
@@ -156,11 +127,6 @@ public class UsefulDocumentFile
         {
             return DocumentsContract.getTreeDocumentId(mUri);
         }
-    }
-
-    protected static String createNewDocumentId(String documentId, String path)
-    {
-        return getRoot(documentId) + ":" + path;
     }
     
     protected UsefulDocumentFile getParentDocument()
@@ -175,7 +141,7 @@ public class UsefulDocumentFile
         }
 
         String documentId = getDocumentId();
-        String[] parts = getPathSegments(documentId);
+        String[] parts = DocumentUtil.getPathSegments(documentId);
         if (parts == null)
         {
             // Might be a root, try to get the tree uri
@@ -192,7 +158,8 @@ public class UsefulDocumentFile
 
         String[] parentParts = Arrays.copyOfRange(parts, 0, parts.length - 1);
         String path = TextUtils.join("/", parentParts);
-        String parentId = createNewDocumentId(documentId, path);
+        String root = DocumentUtil.getRoot(documentId);
+        String parentId = DocumentUtil.createNewDocumentId(root, path);
 
         Uri parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
 
@@ -218,11 +185,6 @@ public class UsefulDocumentFile
             parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
         }
         return UsefulDocumentFile.fromUri(mContext, parentUri);
-    }
-
-    public static boolean isTreeUri(Uri uri) {
-        final List<String> paths = uri.getPathSegments();
-        return (paths.size() == 2 && PATH_TREE.equals(paths.get(0)));
     }
 
     /**
@@ -347,7 +309,7 @@ public class UsefulDocumentFile
         String name = DocumentsContractApi19.getName(mContext, mUri);
         if (name == null)
         {
-            String[] pathParts = getPathSegments(getDocumentId());
+            String[] pathParts = DocumentUtil.getPathSegments(mUri);
             if (pathParts != null)
                 return pathParts[pathParts.length-1];
         }
