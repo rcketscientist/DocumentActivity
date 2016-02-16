@@ -67,13 +67,6 @@ public class UsefulDocumentFile
     private Context mContext;
     private Uri mUri;
 
-    // These constants must be kept in sync with DocumentsContract
-    private static final String PATH_DOCUMENT = "document";
-    private static final String PATH_TREE = "tree";
-
-    private static final String URL_SLASH = "%2F";
-    private static final String URL_COLON = "%3A";
-
     UsefulDocumentFile(UsefulDocumentFile parent, Context context, Uri uri) {
         mParent = parent;
         mContext = context;
@@ -161,8 +154,7 @@ public class UsefulDocumentFile
         String root = DocumentUtil.getRoot(documentId);
         String parentId = DocumentUtil.createNewDocumentId(root, path);
 
-        Uri parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
-
+        Uri parentUri;
         if (DocumentsContract.isDocumentUri(mContext, mUri)) // has tree or document segment
         {
             /**
@@ -610,21 +602,5 @@ public class UsefulDocumentFile
         } else {
             return false;
         }
-    }
-
-    /**
-     * Returns a uri to a child file within a folder.  This can be used to get an assumed uri
-     * to a child within a folder.  This avoids heavy calls to DocumentFile.listFiles or
-     * write-locked createFile
-     *
-     * This will only work with a uri that is an hierarchical tree similar to SCHEME_FILE
-     * @param hierarchicalTreeUri folder to install into
-     * @param filename filename of child file
-     * @return Uri to the child file
-     */
-    public static Uri getChildUri(Uri hierarchicalTreeUri, String filename)
-    {
-        String childUriString = hierarchicalTreeUri.toString() + URL_SLASH + filename;
-        return Uri.parse(childUriString);
     }
 }

@@ -1,14 +1,20 @@
 package com.anthonymandra.framework;
 
+import android.content.Context;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.text.TextUtils;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class DocumentUtil
 {
 	private static final String PATH_DOCUMENT = "document";
 	private static final String PATH_TREE = "tree";
+
+	private static final String URL_SLASH = "%2F";
+	private static final String URL_COLON = "%3A";
 
 	/**
 	 * @param uri The Uri to check.
@@ -199,5 +205,42 @@ public class DocumentUtil
 		if (documentId == null)
 			documentId = getTreeDocumentId(uri);    // If there's no document id resort to tree id
 		return documentId;
+	}
+
+	/**
+	 * Returns a uri to a child file within a folder.  This can be used to get an assumed uri
+	 * to a child within a folder.  This avoids heavy calls to DocumentFile.listFiles or
+	 * write-locked createFile
+	 *
+	 * This will only work with a uri that is an hierarchical tree similar to SCHEME_FILE
+	 * @param hierarchicalTreeUri folder to install into
+	 * @param filename filename of child file
+	 * @return Uri to the child file
+	 */
+	public static Uri getChildUri(Uri hierarchicalTreeUri, String filename)
+	{
+		String childUriString = hierarchicalTreeUri.toString() + URL_SLASH + filename;
+		return Uri.parse(childUriString);
+	}
+
+	/**
+	 * Returns a uri to a neighbor file within the same folder.  This can be used to get an assumed uri
+	 * to a neighbor within a folder.  This avoids heavy calls to DocumentFile.listFiles or
+	 * write-locked createFile
+	 *
+	 * This will only work with a uri that is an hierarchical tree similar to SCHEME_FILE
+	 * @param hierarchicalTreeUri folder to install into
+	 * @param filename filename of child file
+	 * @return Uri to the child file
+	 */
+	public static Uri getNeighborUri(Uri hierarchicalTreeUri, String filename)
+	{
+		String documentId = getDocumentId(hierarchicalTreeUri);
+		String root = getRoot(documentId);
+		String[] parts = getPathSegments(getDocumentId(hierarchicalTreeUri));
+		parts[parts.length-1] = filename; // replace the filename
+		String path = TextUtils.join("/", parts);
+		String neighborId = createNewDocumentId(root, path);
+		return DocumentsContract.buildDocumentUriUsingTree(hierarchicalTreeUri, neighborId);
 	}
 }
