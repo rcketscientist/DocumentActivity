@@ -202,6 +202,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 		InputStream inStream = null;
 		OutputStream outStream = null;
 
+		//TODO: Replace with FileData
 		UsefulDocumentFile destinationDoc = getDocumentFile(target, false, true);
 		if (!destinationDoc.exists())
 		{
@@ -562,6 +563,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	public boolean rmdir(final Uri folder)
 			throws WritePermissionException
 	{
+		//TODO: Replace with FileData
 		UsefulDocumentFile folderDoc = getDocumentFile(folder, true, true);
 		if (!folderDoc.exists()) {
 			return true;
@@ -680,6 +682,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	                                    final boolean createDirectories)
 			throws WritePermissionException
 	{
+		//TODO: Replace with FileData
 		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
 
 		if (!target.exists())

@@ -3,6 +3,8 @@ package com.anthonymandra.framework;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 
@@ -155,8 +157,14 @@ public class UsefulDocumentFile
         String parentId = DocumentUtil.createNewDocumentId(root, path);
 
         Uri parentUri;
-        if (DocumentsContract.isDocumentUri(mContext, mUri)) // has tree or document segment
-        {
+	    /** Removed isDocumentUri check because it involves a resolver check (slow)
+         * and the benefits of blindly creating a treeUri are doubtful, the only way I could
+         * think of this happening is trying to get parent of a SAF permission which would
+         * step above the permission and would only be useful in the case of redundant stacked permissions,
+         * ie: luckily grabbing a parent tree that does have permission.
+         */
+//        if (DocumentsContract.isDocumentUri(mContext, mUri)) // has tree or document segment
+//        {
             /**
              *  It's very important we retain tree id because tree is what defines the permission.
              *  Even if a file is under a permission root if the tree id is corrupted it will
@@ -171,11 +179,11 @@ public class UsefulDocumentFile
             {
                 parentUri = DocumentsContract.buildDocumentUri(mUri.getAuthority(), parentId);
             }
-        }
-        else // attempt to build a tree...this is of dubious usefulness as a permission would have to line up
-        {
-            parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
-        }
+//        }
+//        else // attempt to build a tree...this is of dubious usefulness as a permission would have to line up
+//        {
+//            parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
+//        }
         return UsefulDocumentFile.fromUri(mContext, parentUri);
     }
 
@@ -301,11 +309,16 @@ public class UsefulDocumentFile
         String name = DocumentsContractApi19.getName(mContext, mUri);
         if (name == null)
         {
-            String[] pathParts = DocumentUtil.getPathSegments(mUri);
-            if (pathParts != null)
-                return pathParts[pathParts.length-1];
+            return getName(mUri);
         }
         return name;
+    }
+    private static String getName(Uri uri)
+    {
+        String[] pathParts = DocumentUtil.getPathSegments(uri);
+        if (pathParts != null)
+            return pathParts[pathParts.length-1];
+        return null;
     }
 
     /**
@@ -320,14 +333,20 @@ public class UsefulDocumentFile
     }
     private String getTypeFile() {
         File mFile = new File(mUri.getPath());
+        return getType(mFile);
+    }
+
+    private String getTypeUri() {
+        return DocumentsContractApi19.getType(mContext, mUri);
+    }
+
+    private static String getType(File mFile) {
+
         if (mFile.isDirectory()) {
             return null;
         } else {
             return getTypeForName(mFile.getName());
         }
-    }
-    private String getTypeUri() {
-        return DocumentsContractApi19.getType(mContext, mUri);
     }
     private static String getTypeForName(String name) {
         final int lastDot = name.lastIndexOf('.');
@@ -438,7 +457,10 @@ public class UsefulDocumentFile
         return mFile.canRead();
     }
     private boolean canReadUri() {
-        return DocumentsContractApi19.canRead(mContext, mUri);
+        return canRead(mContext, mUri);
+    }
+    private static boolean canRead(Context c, Uri uri) {
+        return DocumentsContractApi19.canRead(c, uri);
     }
 
     /**
@@ -461,7 +483,10 @@ public class UsefulDocumentFile
         return mFile.canWrite();
     }
     private boolean canWriteUri() {
-        return DocumentsContractApi19.canWrite(mContext, mUri);
+        return canWrite(mContext, mUri);
+    }
+    private static boolean canWrite(Context c, Uri uri) {
+        return DocumentsContractApi19.canWrite(c, uri);
     }
 
     /**
@@ -601,6 +626,116 @@ public class UsefulDocumentFile
             return true;
         } else {
             return false;
+        }
+    }
+
+	/**
+     * This will retrieve all file-related data for a uri in a single query.
+     * Every get requires a query, so if you are interested in more than one field than
+     * this method will offer a SIGNIFICANT performance improvement.
+     * @return
+     */
+    public FileData getData()
+    {
+        if (FileUtil.isFileScheme(mUri))
+            return FileData.fromFile(new File(mUri.getPath()));
+        UsefulDocumentFile parent = getParentFile();
+        Uri p = null;
+        if (parent != null)
+            p = parent.getUri();
+
+        return FileData.fromUri(mContext, mUri, p);
+    }
+
+	/**
+     * POJO for storing all file data in one go.  If a user is interested in more than one
+     * field at a time this will reduce many queries to a single query
+     */
+    public static class FileData
+    {
+        public boolean canRead;
+        public boolean canWrite;
+        public boolean exists;
+        public String type;
+        public Uri uri;
+        public boolean isDirectory;
+        public boolean isFile;
+        public long lastModified;
+        public long length;
+        public String name;
+        public Uri parent;
+
+        private static FileData fromFile(File f)
+        {
+            FileData fd = new FileData();
+            fd.canRead = f.canRead();
+            fd.canWrite = f.canWrite();
+            fd.exists = f.exists();
+            fd.type = getType(f);
+            fd.uri = Uri.fromFile(f);
+            fd.isDirectory = f.isDirectory();
+            fd.isFile = f.isFile();
+            fd.lastModified = f.lastModified();
+            fd.length = f.length();
+            fd.name = f.getName();
+            fd.parent = Uri.fromFile(f.getParentFile());
+            return fd;
+        }
+
+        private static FileData fromUri(Context c, Uri uri, Uri parent)
+        {
+            FileData fd = new FileData();
+            fd.uri = uri;
+            fd.parent = parent;
+
+            String[] columns = new String[] {
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_SIZE,
+                DocumentsContract.Document.COLUMN_FLAGS,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME
+            };
+
+            Cursor cursor = c.getContentResolver().query(uri, columns, null, null, null);
+            fd.exists = cursor != null && cursor.getCount() > 0;
+            if (!fd.exists)
+                return fd;
+
+            cursor.moveToFirst();
+
+            // Ignore if grant doesn't allow read
+            final boolean readPerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    != PackageManager.PERMISSION_GRANTED;
+            final boolean writePerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    != PackageManager.PERMISSION_GRANTED;
+            final String rawType = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE));
+            final int flags = cursor.getInt(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS));
+            final boolean hasMime = !TextUtils.isEmpty(rawType);
+            final boolean supportsDelete = (flags & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) != 0;
+            final boolean supportsCreate = (flags & DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0;
+            final boolean supportsWrite = (flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0;
+            final String name = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME));
+
+            fd.isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(rawType);
+            if (fd.isDirectory)
+            {
+                fd.type = null;
+                fd.isFile = false;
+            }
+            else
+            {
+                fd.type = rawType;
+                fd.isFile = hasMime;
+            }
+
+            fd.name = name != null ? name : getName(uri);
+            fd.canRead = readPerm && hasMime;
+            fd.canWrite = writePerm && (supportsDelete || (fd.isDirectory && supportsCreate) || (hasMime && supportsWrite));
+            fd.lastModified = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED));
+            fd.length = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE));
+            DocumentsContractApi19.closeQuietly(cursor);
+
+            return fd;
         }
     }
 }
