@@ -705,9 +705,9 @@ public class UsefulDocumentFile
 
             // Ignore if grant doesn't allow read
             final boolean readPerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    != PackageManager.PERMISSION_GRANTED;
+                    == PackageManager.PERMISSION_GRANTED;
             final boolean writePerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    != PackageManager.PERMISSION_GRANTED;
+                    == PackageManager.PERMISSION_GRANTED;
             final String rawType = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE));
             final int flags = cursor.getInt(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS));
             final boolean hasMime = !TextUtils.isEmpty(rawType);
