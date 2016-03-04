@@ -38,8 +38,6 @@ public abstract class DocumentActivity extends AppCompatActivity
 	protected static final int REQUEST_CODE_WRITE_PERMISSION = REQUEST_PREFIX - 1;
 	private static final int REQUEST_STORAGE_PERMISSION = REQUEST_PREFIX - 2;
 
-	private static final String PREFERENCE_SKIP_WRITE_WARNING = "skip_write_warning";
-
 	/**
 	 * Permissions required to read and write to storage.
 	 */
@@ -113,8 +111,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 	/**
 	 * The permissions necessary to read and write to storage
-	 * @return
+	 * @return the permissions necessary to read and write to storage
      */
+	@SuppressWarnings("unused")
 	public static String[] getStoragePermissions()
 	{
 		return PERMISSIONS_STORAGE;
@@ -122,9 +121,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 	/**
 	 * Sets whether DocumentActivity will manage storage permission for your activity.
-	 * You may also set {@link #setStoragePermissionRequestEnabled(boolean)} ()} to customize the
+	 * You may also set {@link #setStoragePermissionRationale(int)} to customize the
 	 * rationale for the permission if a user initially declines
-	 * @param enabled
+	 * @param enabled to allow DocumentActivity to manage storage permission
      */
 	protected void setStoragePermissionRequestEnabled(boolean enabled)
 	{
@@ -178,8 +177,8 @@ public abstract class DocumentActivity extends AppCompatActivity
 	/**
 	 * Customizes the rationale for the storage permission, which appears as a snackbar if the
 	 * user initially denies the permission.
-	 * @return
      */
+	@SuppressWarnings("unused")
 	protected void setStoragePermissionRationale(@IdRes int stringId)
 	{
 		mStorageRationale = stringId;
@@ -202,13 +201,14 @@ public abstract class DocumentActivity extends AppCompatActivity
 		InputStream inStream = null;
 		OutputStream outStream = null;
 
-		//TODO: Replace with FileData
 		UsefulDocumentFile destinationDoc = getDocumentFile(target, false, true);
-		if (!destinationDoc.exists())
+		UsefulDocumentFile.FileData destinationData = destinationDoc.getData();
+		if (!destinationData.exists)
 		{
-			destinationDoc.getParentFile().createFile(null, destinationDoc.getName());
+			destinationDoc.getParentFile().createFile(null, destinationData.name);
+			// Note: destinationData is invalidated upon creation of the new file, so make a direct call following
 		}
-		if (!destinationDoc.canRead())
+		if (!destinationDoc.exists())
 		{
 			throw new WritePermissionException(
 					"Write permission not found.  This indicates a SAF write permission was requested.  " +
@@ -217,7 +217,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		try
 		{
-			inStream = FileUtil.getInputStream(this, source);//getContentResolver().openInputStream(source);//new FileInputStream(sourcePfd.getFileDescriptor());
+			inStream = FileUtil.getInputStream(this, source);
 			outStream = getContentResolver().openOutputStream(target);
 
 			Util.copy(inStream, outStream);
@@ -322,9 +322,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 		else
 		{
 			UsefulDocumentFile document = getDocumentFile(file, false, true);
-			if (document == null)
-				return false;
-			return document.delete();
+			return document != null && document.delete();
 		}
 	}
 
@@ -346,11 +344,10 @@ public abstract class DocumentActivity extends AppCompatActivity
 		}
 
 		// Try with Storage Access Framework.
-		if (Util.hasLollipop()) {
+		if (Util.hasLollipop())
+		{
 			UsefulDocumentFile document = getDocumentFile(file, false, true);
-			if (document == null)
-				return false;
-			return document.delete();
+			return document != null && document.delete();
 		}
 
 		return !file.exists();
@@ -413,8 +410,9 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *            The target folder.
 	 * @return true if the renaming was successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean renameFolder(final File source,
-	                            final File target)
+								final File target)
 			throws WritePermissionException
 	{
 		// First try the normal rename.
@@ -503,6 +501,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *            The folder to be created.
 	 * @return True if creation was successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean mkdir(final Uri folder)
 			throws WritePermissionException
 	{
@@ -521,6 +520,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *
 	 * @return true if successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean rmdir(final File folder)
 			throws WritePermissionException
 	{
@@ -542,11 +542,10 @@ public abstract class DocumentActivity extends AppCompatActivity
 		}
 
 		// Try with Storage Access Framework.
-		if (Util.hasLollipop()) {
+		if (Util.hasLollipop())
+		{
 			UsefulDocumentFile document = getDocumentFile(folder, true, true);
-			if (document == null)
-				return false;
-			return document.delete();
+			return document != null && document.delete();
 		}
 
 		return !folder.exists();
@@ -560,22 +559,13 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *
 	 * @return true if successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean rmdir(final Uri folder)
 			throws WritePermissionException
 	{
-		//TODO: Replace with FileData
 		UsefulDocumentFile folderDoc = getDocumentFile(folder, true, true);
-		if (!folderDoc.exists()) {
-			return true;
-		}
-		if (!folderDoc.isDirectory()) {
-			return false;
-		}
-
-		if (folderDoc.listFiles().length > 0)
-			return false;
-
-		return folderDoc.delete();
+		UsefulDocumentFile.FileData file = folderDoc.getData();
+		return !file.exists || file.isDirectory && folderDoc.listFiles().length <= 0 && folderDoc.delete();
 	}
 
 	/**
@@ -585,6 +575,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *            the folder
 	 * @return true if successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean deleteFilesInFolder(final File folder)
 			throws WritePermissionException
 	{
@@ -592,12 +583,15 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 		String[] children = folder.list();
 		if (children != null) {
-			for (int i = 0; i < children.length; i++) {
-				File file = new File(folder, children[i]);
-				if (!file.isDirectory()) {
+			for (String aChildren : children)
+			{
+				File file = new File(folder, aChildren);
+				if (!file.isDirectory())
+				{
 					boolean success = deleteFile(file);
-					if (!success) {
-						Log.w(TAG, "Failed to delete file" + children[i]);
+					if (!success)
+					{
+						Log.w(TAG, "Failed to delete file" + aChildren);
 						totalSuccess = false;
 					}
 				}
@@ -613,6 +607,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *            the folder
 	 * @return true if successful.
 	 */
+	@SuppressWarnings("unused")
 	public boolean deleteFilesInFolder(final Uri folder)
 			throws WritePermissionException
 	{
@@ -638,9 +633,10 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 *
 	 * @return A list of external SD card paths.
 	 */
+	@SuppressWarnings("unused")
 	@TargetApi(Build.VERSION_CODES.KITKAT)
 	protected String[] getExtSdCardPaths() {
-		List<String> paths = new ArrayList<String>();
+		List<String> paths = new ArrayList<>();
 		for (File file : getExternalFilesDirs("external")) {
 			if (file != null && !file.equals(getExternalFilesDir("external"))) {
 				int index = file.getAbsolutePath().lastIndexOf("/Android/data");
@@ -659,7 +655,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 				}
 			}
 		}
-		return paths.toArray(new String[0]);
+		return paths.toArray(new String[paths.size()]);
 	}
 
 	public UsefulDocumentFile getDocumentFile(final File file,
@@ -682,12 +678,12 @@ public abstract class DocumentActivity extends AppCompatActivity
 	                                    final boolean createDirectories)
 			throws WritePermissionException
 	{
-		//TODO: Replace with FileData
-		UsefulDocumentFile target = UsefulDocumentFile.fromUri(this, uri);
+		UsefulDocumentFile targetDoc = UsefulDocumentFile.fromUri(this, uri);
+		UsefulDocumentFile.FileData targetData = targetDoc.getData();
 
-		if (!target.exists())
+		if (!targetData.exists)
 		{
-			UsefulDocumentFile parent = target.getParentFile();
+			UsefulDocumentFile parent = targetDoc.getParentFile();
 			if (parent == null && !createDirectories)
 				return null;
 
@@ -700,31 +696,24 @@ public abstract class DocumentActivity extends AppCompatActivity
 			Stack<UsefulDocumentFile> hierarchyTree = new Stack<>();
 			// Create an hierarchical tree stack of folders that need creation
 			// Stop if the parent exists or we've reached the root
-			while (parent != null && !parent.exists())// && !parent.equals(permissionRoot))
+			while (parent != null && !parent.exists())
 			{
 				hierarchyTree.push(parent);
 				parent = parent.getParentFile();
 			}
 
+			// We should be at the top of the tree
 			if (parent != null && !hierarchyTree.empty())
 			{
 				UsefulDocumentFile outerDirectory = parent;
-				// Now work back down to create the directories
+				// Now work back down to create the directories if needed
 				while (!hierarchyTree.empty())
 				{
-					// If we cannot write to this parent we do not have sufficient permission in this tree
-					if (!outerDirectory.canWrite())
-					{
-						requestWritePermission();
-						throw new WritePermissionException(
-								"Write permission not found.  This indicates a SAF write permission was requested.  " +
-										"The app should store any parameters necessary to resume write here.");
-					}
-
 					UsefulDocumentFile innerDirectory = hierarchyTree.pop();
 					outerDirectory = outerDirectory.createDirectory(innerDirectory.getName());
 					if (outerDirectory == null)
 					{
+						// TODO: Should we assume write permission is the issue here?
 						requestWritePermission();
 						throw new WritePermissionException(
 								"Write permission not found.  This indicates a SAF write permission was requested.  " +
@@ -733,32 +722,31 @@ public abstract class DocumentActivity extends AppCompatActivity
 				}
 			}
 
-			parent = target.getParentFile();
+			parent = targetDoc.getParentFile();
 			if (isDirectory)
 			{
-				parent.createDirectory(target.getName());
+				parent.createDirectory(targetData.name);
 			}
 			else
 			{
-				UsefulDocumentFile f = parent.createFile(null, target.getName());
+				parent.createFile(null, targetData.name);
 			}
 		}
 
 		// If we can't write and don't have permission yet
 		// It's possible we can write without permission, so don't rely on just permission
-		if (!target.canWrite() && !hasPermission(uri))
+		if (!targetData.canWrite && !hasPermission(uri))
 		{
 			throw new WritePermissionException(
 					"Write permission not found.  This indicates a SAF write permission was requested.  " +
 							"The app should store any parameters necessary to resume write here.");
 		}
 
-		return target;
+		return targetDoc;
 	}
 
 	/**
 	 * Determines if a given uri has a permission in its root
-	 * @param uri
 	 * @return true if the uri has permission
 	 */
 	public boolean hasPermission(Uri uri)
@@ -793,7 +781,6 @@ public abstract class DocumentActivity extends AppCompatActivity
 		{
 			for (UriPermission permission : mRootPermissions)
 			{
-				// TODO: This will not work with file schemes, there might not be a way to do so...
 				String permissionTreeId = DocumentsContract.getTreeDocumentId(permission.getUri());
 				String uriTreeId = DocumentsContract.getTreeDocumentId(uri);
 
@@ -811,61 +798,6 @@ public abstract class DocumentActivity extends AppCompatActivity
 	{
 		return Collections.unmodifiableList(mRootPermissions);
 	}
-
-//	@TargetApi(Build.VERSION_CODES.LOLLIPOP)
-//	protected void checkWriteAccess()
-//	{
-//		final SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-//		boolean skipWarning = settings.getBoolean(PREFERENCE_SKIP_WRITE_WARNING, false);
-//		if (skipWarning)
-//			return;
-//
-//		if (Util.hasLollipop())
-//		{
-//			List<UriPermission> permissions = getContentResolver().getPersistedUriPermissions();
-//
-//			android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-//			builder.setTitle(R.string.writeAccessTitle);
-//			builder.setMessage(R.string.requestWriteAccess);
-//			builder.setNegativeButton(R.string.no, new DialogInterface.OnClickListener()
-//			{
-//				@Override
-//				public void onClick(DialogInterface dialog, int which)
-//				{
-//					// Do nothing
-//				}
-//			});
-//			builder.setPositiveButton(R.string.yes, new DialogInterface.OnClickListener()
-//			{
-//				@Override
-//				public void onClick(DialogInterface dialog, int which)
-//				{
-//					requestWritePermission();
-//				}
-//			});
-//			builder.show();
-//
-//		}
-//		else if (Util.hasKitkat())
-//		{
-//			android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-//			builder.setTitle(R.string.writeAccessTitle);
-//			builder.setMessage(R.string.kitkatWriteIssue);
-//			builder.setPositiveButton(R.string.ok, new DialogInterface.OnClickListener()
-//			{
-//				@Override
-//				public void onClick(DialogInterface dialog, int which)
-//				{
-//					// Do nothing, just a warning
-//				}
-//			});
-//			builder.show();
-//		}
-//
-//		SharedPreferences.Editor editor = settings.edit();
-//		editor.putBoolean(PREFERENCE_SKIP_WRITE_WARNING, true);
-//		editor.apply();
-//	}
 
 	@TargetApi(21)
 	protected void requestWritePermission()
@@ -886,6 +818,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 					final AlertDialog dialog = builder.create();
 					image.setOnClickListener(new View.OnClickListener()
 					{
+						@TargetApi(Build.VERSION_CODES.M)
 						@Override
 						public void onClick(View v)
 						{
@@ -941,7 +874,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	/**
 	 * Use this method to set the method currently involved in a write action to allow it to be
 	 * resume in the event of a permission request
-	 * @param callingMethod
+	 * @param callingMethod enum values defining the method to restart
      */
 	protected void setWriteMethod(Enum callingMethod)
 	{
@@ -951,7 +884,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 
 	/**
 	 * Use this method to set the parameters to pass to the method set in {@link #setWriteMethod(Enum)}
-	 * @param callingParameters
+	 * @param callingParameters any parameters that would be passed to {@link #setWriteMethod(Enum)}
      */
 	protected void setWriteParameters(Object[] callingParameters)
 	{
@@ -962,8 +895,8 @@ public abstract class DocumentActivity extends AppCompatActivity
 	/**
 	 * Use this method to set the write method and appropriate parameters to resume an interrupted
 	 * write action when write permission must be requested.
-	 * @param callingMethod
-	 * @param callingParameters
+	 * @param callingMethod enum values defining the method to restart
+	 * @param callingParameters any parameters that will be passed to callingMethod
      */
 	protected void setWriteResume(Enum callingMethod, Object[] callingParameters)
 	{
