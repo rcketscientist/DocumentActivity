@@ -633,7 +633,7 @@ public class UsefulDocumentFile
      * This will retrieve all file-related data for a uri in a single query.
      * Every get requires a query, so if you are interested in more than one field than
      * this method will offer a SIGNIFICANT performance improvement.
-     * @return
+     * @return All file data for the given document, null on exception (likely !exists)
      */
     public FileData getData()
     {
@@ -682,6 +682,14 @@ public class UsefulDocumentFile
             return fd;
         }
 
+	    /**
+         * Gather all file data in a single resolver call.  This is much faster if a code segment
+         * requires 2 or more calls to file-related data which inidividually involve resolver calls
+         * @param c host context
+         * @param uri uri of the object
+         * @param parent parent
+         * @return POJO representing file data, null on exception (likely !exists)
+	     */
         private static FileData fromUri(Context c, Uri uri, Uri parent)
         {
             FileData fd = new FileData();
@@ -696,46 +704,52 @@ public class UsefulDocumentFile
                 DocumentsContract.Document.COLUMN_DISPLAY_NAME
             };
 
-            Cursor cursor = c.getContentResolver().query(uri, columns, null, null, null);
-            fd.exists = cursor != null && cursor.getCount() > 0;
-            if (!fd.exists)
+            try (Cursor cursor = c.getContentResolver().query(uri, columns, null, null, null))
+            {
+                fd.exists = cursor != null && cursor.getCount() > 0;
+                if (!fd.exists)
+                    return fd;
+
+                cursor.moveToFirst();
+
+                // Ignore if grant doesn't allow read
+                final boolean readPerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        == PackageManager.PERMISSION_GRANTED;
+                final boolean writePerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        == PackageManager.PERMISSION_GRANTED;
+                final String rawType = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE));
+                final int flags = cursor.getInt(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS));
+                final boolean hasMime = !TextUtils.isEmpty(rawType);
+                final boolean supportsDelete = (flags & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) != 0;
+                final boolean supportsCreate = (flags & DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0;
+                final boolean supportsWrite = (flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0;
+                final String name = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME));
+
+                fd.isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(rawType);
+                if (fd.isDirectory)
+                {
+                    fd.type = null;
+                    fd.isFile = false;
+                }
+                else
+                {
+                    fd.type = rawType;
+                    fd.isFile = hasMime;
+                }
+
+                fd.name = name != null ? name : getName(uri);
+                fd.canRead = readPerm && hasMime;
+                fd.canWrite = writePerm && (supportsDelete || (fd.isDirectory && supportsCreate) || (hasMime && supportsWrite));
+                fd.lastModified = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED));
+                fd.length = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE));
+                DocumentsContractApi19.closeQuietly(cursor);
+
                 return fd;
-
-            cursor.moveToFirst();
-
-            // Ignore if grant doesn't allow read
-            final boolean readPerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    == PackageManager.PERMISSION_GRANTED;
-            final boolean writePerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    == PackageManager.PERMISSION_GRANTED;
-            final String rawType = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE));
-            final int flags = cursor.getInt(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS));
-            final boolean hasMime = !TextUtils.isEmpty(rawType);
-            final boolean supportsDelete = (flags & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) != 0;
-            final boolean supportsCreate = (flags & DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0;
-            final boolean supportsWrite = (flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0;
-            final String name = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME));
-
-            fd.isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(rawType);
-            if (fd.isDirectory)
-            {
-                fd.type = null;
-                fd.isFile = false;
             }
-            else
+            catch(Exception e)  // This is what DocumentContract.exists does, likely means !exists
             {
-                fd.type = rawType;
-                fd.isFile = hasMime;
+                return null;
             }
-
-            fd.name = name != null ? name : getName(uri);
-            fd.canRead = readPerm && hasMime;
-            fd.canWrite = writePerm && (supportsDelete || (fd.isDirectory && supportsCreate) || (hasMime && supportsWrite));
-            fd.lastModified = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED));
-            fd.length = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE));
-            DocumentsContractApi19.closeQuietly(cursor);
-
-            return fd;
         }
     }
 }

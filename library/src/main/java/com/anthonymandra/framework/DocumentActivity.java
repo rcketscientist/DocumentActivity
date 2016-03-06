@@ -678,19 +678,31 @@ public abstract class DocumentActivity extends AppCompatActivity
 	                                    final boolean createDirectories)
 			throws WritePermissionException
 	{
+		/*
+		The logic flow here may seem a bit odd, but the goal is to ensure minimal resolver calls
+		Most file data calls to a DocumentFile involve a resolver, so we split the logic a bit
+		to avoid additional .canWrite and .exists calls.
+		 */
 		UsefulDocumentFile targetDoc = UsefulDocumentFile.fromUri(this, uri);
 		UsefulDocumentFile.FileData targetData = targetDoc.getData();
 
-		if (!targetData.exists)
+		if (targetData == null || !targetData.exists)   // TODO: I believe null will always supersede .exists, check
 		{
+			String name;
+			if (targetData == null) //target likely doesn't exist, get the name
+				name = targetDoc.getName();
+			else
+				name = targetData.name;
+
 			UsefulDocumentFile parent = targetDoc.getParentFile();
 			if (parent == null && !createDirectories)
 				return null;
 
-			/* This next part is necessary because DocumentFile.findFile is extremely slow in large
-			*  folders, so what we do instead is track up the tree what folders need creation
-			*  and place them in a stack (Using the convenient *working* UsefulDocumentFile.getParentFile).
-			*  We then walk the stack back down creating folders as needed.
+			/*
+			This next part is necessary because DocumentFile.findFile is extremely slow in large
+			folders, so what we do instead is track up the tree what folders need creation
+			and place them in a stack (Using the convenient *working* UsefulDocumentFile.getParentFile).
+			We then walk the stack back down creating folders as needed.
 			*/
 
 			Stack<UsefulDocumentFile> hierarchyTree = new Stack<>();
@@ -717,29 +729,40 @@ public abstract class DocumentActivity extends AppCompatActivity
 						requestWritePermission();
 						throw new WritePermissionException(
 								"Write permission not found.  This indicates a SAF write permission was requested.  " +
-										"The app should store any parameters necessary to resume write here.");
+								"The app should store any parameters necessary to resume write here.");
 					}
 				}
 			}
 
 			parent = targetDoc.getParentFile();
+
 			if (isDirectory)
 			{
-				parent.createDirectory(targetData.name);
+				targetDoc = parent.createDirectory(name);
 			}
 			else
 			{
-				parent.createFile(null, targetData.name);
+				targetDoc = parent.createFile(null, name);
+			}
+
+			// If the target could not be created we don't have write permission. Possible other reasons?
+			if (targetDoc == null)
+			{
+				throw new WritePermissionException(
+						"Write permission not found.  This indicates a SAF write permission was requested.  " +
+						"The app should store any parameters necessary to resume write here.");
 			}
 		}
-
-		// If we can't write and don't have permission yet
-		// It's possible we can write without permission, so don't rely on just permission
-		if (!targetData.canWrite && !hasPermission(uri))
+		else
 		{
-			throw new WritePermissionException(
-					"Write permission not found.  This indicates a SAF write permission was requested.  " +
-							"The app should store any parameters necessary to resume write here.");
+			// If we can't write and don't have permission yet
+			// It's possible we can write without permission, so don't rely on just permission
+			if (!targetData.canWrite && !hasPermission(uri))    // TODO: Can we do this without a resolver call?
+			{
+				throw new WritePermissionException(
+						"Write permission not found.  This indicates a SAF write permission was requested.  " +
+						"The app should store any parameters necessary to resume write here.");
+			}
 		}
 
 		return targetDoc;
