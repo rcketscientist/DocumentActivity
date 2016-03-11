@@ -7,18 +7,18 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
-
-import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
-import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
+
+import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
+import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Representation of a document backed by either a
@@ -75,7 +75,7 @@ public class UsefulDocumentFile
         mUri = uri;
     }
 
-    public static UsefulDocumentFile fromUri(Context c, Uri uri)
+    public static UsefulDocumentFile fromUri(@NonNull Context c, @NonNull Uri uri)
     {
 /*        if (FileUtil.isFileScheme(uri) && Util.hasKitkat())
         {
@@ -243,8 +243,9 @@ public class UsefulDocumentFile
         }
         final File target = new File(mFile, displayName);
         try {
-            target.createNewFile();
-            return new UsefulDocumentFile(this, mContext, Uri.fromFile(target));
+            if(target.createNewFile())
+                return new UsefulDocumentFile(this, mContext, Uri.fromFile(target));
+            return null;
         } catch (IOException e) {
             Log.w(TAG, "Failed to createFile: " + e);
             return null;

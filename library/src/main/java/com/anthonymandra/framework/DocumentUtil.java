@@ -1,13 +1,14 @@
 package com.anthonymandra.framework;
 
-import android.content.Context;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
-import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class DocumentUtil
 {
 	private static final String PATH_DOCUMENT = "document";
@@ -68,7 +69,8 @@ public class DocumentUtil
 	 * Extract the {@link DocumentsContract.Document#COLUMN_DOCUMENT_ID} from the given URI.
 	 * From {@link DocumentsContract} but return null instead of throw
 	 */
-	public static String getDocumentId(Uri documentUri) {
+	@Nullable
+	public static String getDocumentId(@NonNull Uri documentUri) {
 		final List<String> paths = documentUri.getPathSegments();
 		if (paths.size() >= 2 && PATH_DOCUMENT.equals(paths.get(0))) {
 			return paths.get(1);
@@ -91,9 +93,10 @@ public class DocumentUtil
 	 * @see {@link #getDocumentId(Uri)}
 	 * @see {@link DocumentsContract#getDocumentId(Uri)}
 	 *
-	 * @return
+	 * @return the root id of the document id or null
 	 */
-	public static String getRoot(String documentId)
+	@Nullable
+	public static String getRoot(@NonNull String documentId)
 	{
 		String[] parts = documentId.split(":");
 		if (parts.length > 0)
@@ -112,15 +115,16 @@ public class DocumentUtil
 	 * @see {@link #getDocumentId(Uri)}
 	 * @see {@link DocumentsContract#getDocumentId(Uri)}
 	 *
-	 * @return
+	 * @return just the document portion of the id without the root
 	 */
-	public static String[] getIdSegments(String documentId)
+	@Nullable
+	public static String[] getIdSegments(@NonNull String documentId)
 	{
 		return documentId.split(":");
 	}
 
 	/**
-	 * Given a typical document id this will split the path segements.
+	 * Given a typical document id this will split the path segments.
 	 * <p>
 	 * Example:
 	 * 0000-0000:folder/file.ext
@@ -130,14 +134,14 @@ public class DocumentUtil
 	 * @see {@link #getDocumentId(Uri)}
 	 * @see {@link DocumentsContract#getDocumentId(Uri)}
 	 *
-	 * @return
+	 * @return tokenized path segments within the document portion of uri
 	 */
+	@Nullable
 	public static String[] getPathSegments(Uri documentUri)
 	{
 		String documentId = getDocumentId(documentUri);
 		if (documentId == null)
 			return null;
-
 		return getPathSegments(documentId);
 	}
 
@@ -152,9 +156,10 @@ public class DocumentUtil
 	 * @see {@link #getDocumentId(Uri)}
 	 * @see {@link DocumentsContract#getDocumentId(Uri)}
 	 *
-	 * @return
+	 * @return Tokenized path segments within documentId
 	 */
-	public static String[] getPathSegments(String documentId)
+	@Nullable
+	public static String[] getPathSegments(@NonNull String documentId)
 	{
 		String[] idParts = getIdSegments(documentId);
 		// If there's only one part it's a root
@@ -180,9 +185,9 @@ public class DocumentUtil
 	 * @see {@link #getRoot(String)}}
 	 * @see {@link DocumentsContract#getDocumentId(Uri)}
 	 *
-	 * @return
+	 * @return Document ID for the new file
 	 */
-	public static String createNewDocumentId(String root, String path)
+	public static String createNewDocumentId(@NonNull String root, @NonNull String path)
 	{
 		return root + ":" + path;
 	}
@@ -219,8 +224,9 @@ public class DocumentUtil
 	 */
 	public static Uri getChildUri(Uri hierarchicalTreeUri, String filename)
 	{
-		String childUriString = hierarchicalTreeUri.toString() + URL_SLASH + filename;
-		return Uri.parse(childUriString);
+		String parentDocumentId = DocumentUtil.getTreeDocumentId(hierarchicalTreeUri);
+		String childDocumentId = parentDocumentId + "/" + filename;
+		return DocumentsContract.buildDocumentUriUsingTree(hierarchicalTreeUri, childDocumentId);
 	}
 
 	/**
@@ -233,11 +239,21 @@ public class DocumentUtil
 	 * @param filename filename of child file
 	 * @return Uri to the child file
 	 */
-	public static Uri getNeighborUri(Uri hierarchicalTreeUri, String filename)
+	@Nullable
+	public static Uri getNeighborUri(@NonNull Uri hierarchicalTreeUri, String filename)
 	{
 		String documentId = getDocumentId(hierarchicalTreeUri);
+		if (documentId == null)
+			return null;
+
 		String root = getRoot(documentId);
-		String[] parts = getPathSegments(getDocumentId(hierarchicalTreeUri));
+		if (root == null)
+			return null;
+
+		String[] parts = getPathSegments(documentId);
+		if (parts == null)
+			return null;
+
 		parts[parts.length-1] = filename; // replace the filename
 		String path = TextUtils.join("/", parts);
 		String neighborId = createNewDocumentId(root, path);
