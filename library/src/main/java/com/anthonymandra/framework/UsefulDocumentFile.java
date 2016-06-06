@@ -8,6 +8,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
@@ -103,6 +104,7 @@ public class UsefulDocumentFile
      * This will simply attempt to acquire the parent used to generate the tree.
      * For filesystem use this is sufficient.
      */
+    @Nullable
     public UsefulDocumentFile getParentFile()
     {
         if (mParent != null)
@@ -123,7 +125,8 @@ public class UsefulDocumentFile
             return DocumentsContract.getTreeDocumentId(mUri);
         }
     }
-    
+
+    @Nullable
     protected UsefulDocumentFile getParentDocument()
     {
         if (FileUtil.isFileScheme(mUri))
