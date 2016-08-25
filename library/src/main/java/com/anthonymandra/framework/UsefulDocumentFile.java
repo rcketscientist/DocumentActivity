@@ -69,6 +69,7 @@ public class UsefulDocumentFile
     private final UsefulDocumentFile mParent;
     private Context mContext;
     private Uri mUri;
+    private FileData mFileData;
 
     UsefulDocumentFile(UsefulDocumentFile parent, Context context, Uri uri) {
         mParent = parent;
@@ -634,12 +635,26 @@ public class UsefulDocumentFile
     }
 
 	/**
+	 * Returns cached file data.  If cache does not exist it's populated {@link #getData()}.
+     * The cached data could be incorrect if the file system has changed since the data was populated.
+     * Therefore this is best used as a convenience method to link file data and document
+     * functionality for code that requires multiple queries for a short time.
+     * @return Cached file data, null on exception (likely !exists)
+     */
+    public @Nullable FileData getCachedData()
+    {
+        if (mFileData == null)
+            mFileData = getData();
+        return mFileData;
+    }
+
+	/**
      * This will retrieve all file-related data for a uri in a single query.
      * Every get requires a query, so if you are interested in more than one field than
      * this method will offer a SIGNIFICANT performance improvement.
      * @return All file data for the given document, null on exception (likely !exists)
      */
-    public FileData getData()
+    public @Nullable FileData getData()
     {
         if (FileUtil.isFileScheme(mUri))
             return FileData.fromFile(new File(mUri.getPath()));
@@ -694,7 +709,7 @@ public class UsefulDocumentFile
          * @param parent parent
          * @return POJO representing file data, null on exception (likely !exists)
 	     */
-        private static FileData fromUri(Context c, Uri uri, Uri parent)
+        private static @Nullable FileData fromUri(Context c, Uri uri, Uri parent)
         {
             FileData fd = new FileData();
             fd.uri = uri;
