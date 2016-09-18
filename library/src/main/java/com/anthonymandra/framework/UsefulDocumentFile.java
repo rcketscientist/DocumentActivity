@@ -115,15 +115,25 @@ public class UsefulDocumentFile
         return getParentDocument();
     }
 
-    protected String getDocumentId()
+    public String getDocumentId()
     {
-        if (DocumentsContract.isDocumentUri(mContext, mUri))
+
+        try
         {
-            return DocumentsContract.getDocumentId(mUri);
+            if (DocumentsContract.isDocumentUri(mContext, mUri))
+            {
+                return DocumentsContract.getDocumentId(mUri);
+            } else
+            {
+                return DocumentsContract.getTreeDocumentId(mUri);
+            }
         }
-        else
+        catch (IllegalArgumentException e)
         {
-            return DocumentsContract.getTreeDocumentId(mUri);
+            // This is not a document uri, for now I'll try to handle this gracefully.
+            // While it may be convenient for a user to be able to use this object for all uri,
+            // it may be difficult to manage all aspects gracefully.
+            return null;
         }
     }
 
