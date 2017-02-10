@@ -135,7 +135,7 @@ public class    DocumentsContractApi19 {
                     DocumentsContract.Document.COLUMN_DOCUMENT_ID }, null, null, null);
             return c.getCount() > 0;
         } catch (Exception e) {
-            Log.w(TAG, "Failed query: " + e);
+//            Log.w(TAG, "Failed query: " + e);
             return false;
         } finally {
             closeQuietly(c);
@@ -187,7 +187,7 @@ public class    DocumentsContractApi19 {
         }
     }
 
-    private static void closeQuietly(AutoCloseable closeable) {
+    public static void closeQuietly(AutoCloseable closeable) {
         if (closeable != null) {
             try {
                 closeable.close();
