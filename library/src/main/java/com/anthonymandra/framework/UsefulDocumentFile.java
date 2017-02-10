@@ -3,22 +3,65 @@ package com.anthonymandra.framework;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
-import android.support.v4.provider.DocumentFile;
-
-import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
-import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
+
+import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
+import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
+/**
+ * Representation of a document backed by either a
+ * {@link android.provider.DocumentsProvider} or a raw file on disk.
+ * <p>
+ * There are several differences between documents and traditional files:
+ * <ul>
+ * <li>Documents express their display name and MIME type as separate fields,
+ * instead of relying on file extensions. Some documents providers may still
+ * choose to append extensions to their display names, but that's an
+ * implementation detail.
+ * <li>A single document may appear as the child of multiple directories, so it
+ * doesn't inherently know who its parent is. That is, documents don't have a
+ * strong notion of path. You can easily traverse a tree of documents from
+ * parent to child, but not from child to parent.
+ * <li>Each document has a unique identifier within that provider. This
+ * identifier is an <em>opaque</em> implementation detail of the provider, and
+ * as such it must not be parsed.
+ * </ul>
+ * <p>
+ * As you navigate the tree of DocumentFile instances, you can always use
+ * {@link #getUri()} to obtain the Uri representing the underlying document for
+ * that object, for use with {@link ContentResolver#openInputStream(Uri)}, etc.
+ * <p>
+ * To simplify your code on devices running
+ * {@link android.os.Build.VERSION_CODES#KITKAT} or earlier, you can use
+ * file scheme uris.  Note: These ONLY work prior to 4.4.  Passing a file uri
+ * on 4.4+ will not have write access!
+ * <p>
+ * Why was this necessary?  There are many flaws in the existing:
+ * <ul>
+ * <li>{@link android.support.v4.provider.SingleDocumentFile}
+ * <li>{@link android.support.v4.provider.TreeDocumentFile}
+ * </ul>
+ * making them useless in any dynamic environment:
+ * <ul>
+ * <li>https://code.google.com/p/android/issues/detail?id=200941
+ * <li>https://code.google.com/p/android/issues/detail?id=199562
+ * <ul>
+ * @see android.provider.DocumentsProvider
+ * @see android.provider.DocumentsContract
+ */
 public class UsefulDocumentFile
 {
     private static final String TAG = UsefulDocumentFile.class.getSimpleName();
@@ -26,16 +69,7 @@ public class UsefulDocumentFile
     private final UsefulDocumentFile mParent;
     private Context mContext;
     private Uri mUri;
-
-//    private DocumentFile mDocument;
-//    private Context mContext;
-
-    // These constants must be kept in sync with DocumentsContract
-    private static final String PATH_DOCUMENT = "document";
-    private static final String PATH_TREE = "tree";
-
-    private static final String URL_SLASH = "%2F";
-    private static final String URL_COLON = "%3A";
+    private FileData mFileData;
 
     UsefulDocumentFile(UsefulDocumentFile parent, Context context, Uri uri) {
         mParent = parent;
@@ -43,139 +77,20 @@ public class UsefulDocumentFile
         mUri = uri;
     }
 
-//    UsefulDocumentFile(Context c, DocumentFile document)
-//    {
-//        mDocument = document;
-//        mContext = c;
-//    }
-
-//    public static UsefulDocumentFile fromFile(Context c, File file)
-//    {
-//        return new UsefulDocumentFile(c, DocumentFile.fromFile(file));
-//    }
-
-    /**
-     * Representation of a document backed by either a
-     * {@link android.provider.DocumentsProvider} or a raw file on disk.
-     * <p>
-     * There are several differences between documents and traditional files:
-     * <ul>
-     * <li>Documents express their display name and MIME type as separate fields,
-     * instead of relying on file extensions. Some documents providers may still
-     * choose to append extensions to their display names, but that's an
-     * implementation detail.
-     * <li>A single document may appear as the child of multiple directories, so it
-     * doesn't inherently know who its parent is. That is, documents don't have a
-     * strong notion of path. You can easily traverse a tree of documents from
-     * parent to child, but not from child to parent.
-     * <li>Each document has a unique identifier within that provider. This
-     * identifier is an <em>opaque</em> implementation detail of the provider, and
-     * as such it must not be parsed.
-     * </ul>
-     * <p>
-     * As you navigate the tree of DocumentFile instances, you can always use
-     * {@link #getUri()} to obtain the Uri representing the underlying document for
-     * that object, for use with {@link ContentResolver#openInputStream(Uri)}, etc.
-     * <p>
-     * To simplify your code on devices running
-     * {@link android.os.Build.VERSION_CODES#KITKAT} or earlier, you can use
-     * file scheme uris.  Note: These ONLY work prior to 4.4.  Passing a file uri
-     * on 4.4+ will not have write access!
-     *
-     * @see android.provider.DocumentsProvider
-     * @see android.provider.DocumentsContract
-     */
-    public static UsefulDocumentFile fromUri(Context c, Uri uri)
+    public static UsefulDocumentFile fromUri(@NonNull Context c, @NonNull Uri uri)
     {
-        // TODO: Should probably check the DF value and return null if it is null to be clear.
-//        if (FileUtil.isFileScheme(uri))
-//        {
-//            if (Util.hasKitkat())
-//            {
-//                /*  Although not documented file-based DocumentFiles are entirely unsupported
-//                    in 4.4+.  They are there solely for backwards compatibility.  To avoid
-//                    any confusion on the matter we throw an exception here.*/
-//                 throw new IllegalArgumentException("File-based DocumentFile is unsupported in 4.4+.");
-//            }
-//            return new UsefulDocumentFile(c, DocumentFile.fromFile(new File(uri.getPath())));
-//        }
-//        else if (DocumentsContract.isDocumentUri(c, uri))
-//            return new UsefulDocumentFile(c, DocumentFile.fromSingleUri(c, uri));
-//        else if (isTreeUri(uri))
-            return new UsefulDocumentFile(null, c, uri);
-        /** It's important we retain tree because TreeDocumentFile are way more useful
-         *  for ex. SingleDocumentFile cannot createDirectory or createFile even it represents
-         *  a directory */
-//        else if (hasTreeDocumentId(uri))
-//            return new UsefulDocumentFile(c, DocumentFile.fromTreeUri(c, uri));
-//        else if (DocumentsContract.isDocumentUri(c, uri))
-//            return new UsefulDocumentFile(c, DocumentFile.fromSingleUri(c, uri));
-//        else
-//            throw new IllegalArgumentException("Invalid URI: " + uri);
-    }
-
-//    public DocumentFile getDocumentFile()
-//    {
-//        return mDocument;
-//    }
-
-    public UsefulDocumentFile getParentFile()
-    {
-        if (mParent != null)
+/*        if (FileUtil.isFileScheme(uri) && Util.hasKitkat())
         {
-            return mParent;
+                *//*  Although not documented file-based DocumentFiles are entirely unsupported
+                    in 4.4+.  They are there solely for backwards compatibility.  To avoid
+                    any confusion on the matter we throw an exception here. *//*
+                 throw new IllegalArgumentException("File-based DocumentFile is unsupported in 4.4+.");
         }
-        return getParentDocument();
-    }
-
-    protected static String getRoot(String documentId)
-    {
-        String[] parts = documentId.split(":");
-        if (parts.length > 0)
-            return parts[0];
-        return null;
-    }
-
-    protected static String[] getIdSegments(String documentId)
-    {
-        // usb:folder/file.ext would effectively be:
-        // content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3Afolder%2Ffile.ext
-        // We want to return "folder/file.ext"
-        return documentId.split(":");
-    }
-
-    protected static String[] getPathSegments(String documentId)
-    {
-        // usb:folder/file.ext would effectively be:
-        // content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3Afolder%2Ffile.ext
-        // We want to return ["folder", "file.ext"]
-        String[] idParts = getIdSegments(documentId);
-        // If there's only one part it's a root
-        if (idParts.length <= 1)
+        else */if (DocumentUtil.isTreeUri(uri)) // A tree uri is not useful by itself
         {
-            return null;
+            uri = DocumentsContractApi21.prepareTreeUri(uri);   // Generate the document portion of uri
         }
-
-        // The last part should be the path for both document and tree uris
-        String path = idParts[idParts.length-1];
-        return path.split("/");
-    }
-
-    protected String getDocumentId()
-    {
-        if (DocumentsContract.isDocumentUri(mContext, mUri))
-        {
-            return DocumentsContract.getDocumentId(mUri);
-        }
-        else
-        {
-            return DocumentsContract.getTreeDocumentId(mUri);
-        }
-    }
-
-    protected static String createNewDocumentId(String documentId, String path)
-    {
-        return getRoot(documentId) + ":" + path;
+        return new UsefulDocumentFile(null, c, uri);
     }
 
     /**
@@ -190,6 +105,39 @@ public class UsefulDocumentFile
      * This will simply attempt to acquire the parent used to generate the tree.
      * For filesystem use this is sufficient.
      */
+    @Nullable
+    public UsefulDocumentFile getParentFile()
+    {
+        if (mParent != null)
+        {
+            return mParent;
+        }
+        return getParentDocument();
+    }
+
+    public String getDocumentId()
+    {
+
+        try
+        {
+            if (DocumentsContract.isDocumentUri(mContext, mUri))
+            {
+                return DocumentsContract.getDocumentId(mUri);
+            } else
+            {
+                return DocumentsContract.getTreeDocumentId(mUri);
+            }
+        }
+        catch (IllegalArgumentException e)
+        {
+            // This is not a document uri, for now I'll try to handle this gracefully.
+            // While it may be convenient for a user to be able to use this object for all uri,
+            // it may be difficult to manage all aspects gracefully.
+            return null;
+        }
+    }
+
+    @Nullable
     protected UsefulDocumentFile getParentDocument()
     {
         if (FileUtil.isFileScheme(mUri))
@@ -202,90 +150,49 @@ public class UsefulDocumentFile
         }
 
         String documentId = getDocumentId();
-        String[] parts = getPathSegments(documentId);
-        if (parts == null)
-        {
-            // Might be a root, try to get the tree uri
-            try
-            {
-                String treeId = DocumentsContract.getTreeDocumentId(mUri);
-                return UsefulDocumentFile.fromUri(mContext, DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), treeId));
-            }
-            catch (IllegalArgumentException e)
-            {
-                return null;
-            }
-        }
+        String treeId = DocumentsContract.getTreeDocumentId(mUri);
+
+        if (documentId.equals(treeId)) // don't elevate beyond the tree permission
+            return null;
+
+        String[] parts = DocumentUtil.getPathSegments(documentId);
+        if (parts == null)  // likely root permission
+            return null;
 
         String[] parentParts = Arrays.copyOfRange(parts, 0, parts.length - 1);
         String path = TextUtils.join("/", parentParts);
-        String parentId = createNewDocumentId(documentId, path);
+        String root = DocumentUtil.getRoot(documentId);
+        String parentId = DocumentUtil.createNewDocumentId(root, path);
 
-        Uri parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
-	    /**
-         * It would be preferable to retain the tree/document structure, however
-         * {@link DocumentFile#fromTreeUri(Context, Uri)} calls
-         * {@link DocumentsContractApi21#prepareTreeUri(treeUri)) which butchers a valid
-         * tree/document uri yielding simply a tree uri to the root
-         * for ex. (/extSdCard/_documentTest):
-         * content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3A_documentTest
-         * DocumentFile.fromTreeUri:
-         * mUri: content://com.android.externalstorage.documents/tree/0000-0000%3A/document/0000-0000%3A
-         * This is obviously not the right directory, however the original uri is a perfectly valid
-         * uri to feed into {@link android.support.v4.provider.TreeDocumentFile}
-         * but we as a developer cannot.
-         *
-         * Instead we'll just rely on a simple tree-only uri for parents:
-         * content://com.android.externalstorage.documents/tree/0000-0000%3A_documentTest
-         * This loses the 'link' to the original permission root...not sure if this is a particular issue atm.
-         *
-         * This is all important becuase {@link android.support.v4.provider.SingleDocumentFile}
-         * has no creation support (directory or file) so we must rely on
-         * {@link DocumentFile#fromTreeUri(Context, Uri)}
+        Uri parentUri;
+	    /** Removed isDocumentUri check because it involves a resolver check (slow)
+         * and the benefits of blindly creating a treeUri are doubtful, the only way I could
+         * think of this happening is trying to get parent of a SAF permission which would
+         * step above the permission and would only be useful in the case of redundant stacked permissions,
+         * ie: luckily grabbing a parent tree that does have permission.
          */
-        if (DocumentsContract.isDocumentUri(mContext, mUri))
-        {
+//        if (DocumentsContract.isDocumentUri(mContext, mUri)) // has tree or document segment
+//        {
             /**
-             * While UsefulDocumentFile handles uris much more gracefully than the internal classes,
-             * and there's technically no way to create a proper {@link android.support.v4.provider.TreeDocumentFile}
-             * without exhaustively walking the tree from a permission root, we don't want to preclude
-             * the possibil
-             *  It's important we retain tree because TreeDocumentFile are way more useful
-             *  for ex. SingleDocumentFile cannot createDirectory or createFile even it represents
-             *  a directory */
-            if (hasTreeDocumentId(mUri))
+             *  It's very important we retain tree id because tree is what defines the permission.
+             *  Even if a file is under a permission root if the tree id is corrupted it will
+             *  fail to gain write permission! */
+            // TODO: Doubtful, but can you game document uris to write where you're not allowed
+            // using a known valid tree?
+            if (DocumentUtil.hasTreeDocumentId(mUri)) // has tree segment
             {
                 parentUri = DocumentsContract.buildDocumentUriUsingTree(mUri, parentId);
             }
-            else
+            else // has only document segment, if there are write restrictions this is useless!
             {
                 parentUri = DocumentsContract.buildDocumentUri(mUri.getAuthority(), parentId);
             }
-        }
-        else
-        {
-            parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
-        }
+//        }
+//        else // attempt to build a tree...this is of dubious usefulness as a permission would have to line up
+//        {
+//            parentUri = DocumentsContract.buildTreeDocumentUri(mUri.getAuthority(), parentId);
+//        }
         return UsefulDocumentFile.fromUri(mContext, parentUri);
-    }
-
-    public static boolean isTreeUri(Uri uri) {
-        final List<String> paths = uri.getPathSegments();
-        return (paths.size() == 2 && PATH_TREE.equals(paths.get(0)));
-    }
-
-    // From DocumentsContract but return null instead of throw
-    public static String getTreeDocumentId(Uri uri) {
-        final List<String> paths = uri.getPathSegments();
-        if (paths.size() >= 2 && PATH_TREE.equals(paths.get(0))) {
-            return paths.get(1);
-        }
-        return null;
-    }
-
-    // From DocumentsContract but return null instead of throw
-    public static boolean hasTreeDocumentId(Uri uri) {
-        return getTreeDocumentId(uri) != null;
     }
 
     /**
@@ -344,8 +251,9 @@ public class UsefulDocumentFile
         }
         final File target = new File(mFile, displayName);
         try {
-            target.createNewFile();
-            return new UsefulDocumentFile(this, mContext, Uri.fromFile(target));
+            if(target.createNewFile())
+                return new UsefulDocumentFile(this, mContext, Uri.fromFile(target));
+            return null;
         } catch (IOException e) {
             Log.w(TAG, "Failed to createFile: " + e);
             return null;
@@ -391,7 +299,9 @@ public class UsefulDocumentFile
     }
 
     /**
-     * Return the display name of this document.
+     * Return the display name of this document.  Attempts to parse the name from the uri
+     * when {@link DocumentsContractApi19#getName(Context, Uri)} fails.  It appears to fail
+     * on hidden folders, possibly others.
      *
      * @see android.provider.DocumentsContract.Document#COLUMN_DISPLAY_NAME
      */
@@ -408,11 +318,16 @@ public class UsefulDocumentFile
         String name = DocumentsContractApi19.getName(mContext, mUri);
         if (name == null)
         {
-            String[] pathParts = getPathSegments(getDocumentId());
-            if (pathParts != null)
-                return pathParts[pathParts.length-1];
+            return getName(mUri);
         }
         return name;
+    }
+    private static String getName(Uri uri)
+    {
+        String[] pathParts = DocumentUtil.getPathSegments(uri);
+        if (pathParts != null)
+            return pathParts[pathParts.length-1];
+        return null;
     }
 
     /**
@@ -427,14 +342,20 @@ public class UsefulDocumentFile
     }
     private String getTypeFile() {
         File mFile = new File(mUri.getPath());
+        return getType(mFile);
+    }
+
+    private String getTypeUri() {
+        return DocumentsContractApi19.getType(mContext, mUri);
+    }
+
+    private static String getType(File mFile) {
+
         if (mFile.isDirectory()) {
             return null;
         } else {
             return getTypeForName(mFile.getName());
         }
-    }
-    private String getTypeUri() {
-        return DocumentsContractApi19.getType(mContext, mUri);
     }
     private static String getTypeForName(String name) {
         final int lastDot = name.lastIndexOf('.');
@@ -545,7 +466,10 @@ public class UsefulDocumentFile
         return mFile.canRead();
     }
     private boolean canReadUri() {
-        return DocumentsContractApi19.canRead(mContext, mUri);
+        return canRead(mContext, mUri);
+    }
+    private static boolean canRead(Context c, Uri uri) {
+        return DocumentsContractApi19.canRead(c, uri);
     }
 
     /**
@@ -568,7 +492,10 @@ public class UsefulDocumentFile
         return mFile.canWrite();
     }
     private boolean canWriteUri() {
-        return DocumentsContractApi19.canWrite(mContext, mUri);
+        return canWrite(mContext, mUri);
+    }
+    private static boolean canWrite(Context c, Uri uri) {
+        return DocumentsContractApi19.canWrite(c, uri);
     }
 
     /**
@@ -711,19 +638,141 @@ public class UsefulDocumentFile
         }
     }
 
-    /**
-     * Returns a uri to a child file within a folder.  This can be used to get an assumed uri
-     * to a child within a folder.  This avoids heavy calls to DocumentFile.listFiles or
-     * write-locked createFile
-     *
-     * This will only work with a uri that is an heriacrchical tree similar to SCHEME_FILE
-     * @param hierarchicalTreeUri folder to install into
-     * @param filename filename of child file
-     * @return Uri to the child file
+	/**
+	 * Returns cached file data.  If cache does not exist it's populated {@link #getData()}.
+     * The cached data could be incorrect if the file system has changed since the data was populated.
+     * Therefore this is best used as a convenience method to link file data and document
+     * functionality for code that requires multiple queries for a short time.
+     * @return Cached file data, null on exception (likely !exists)
      */
-    public static Uri getChildUri(Uri hierarchicalTreeUri, String filename)
+    public @Nullable FileData getCachedData()
     {
-        String childUriString = hierarchicalTreeUri.toString() + URL_SLASH + filename;
-        return Uri.parse(childUriString);
+        if (mFileData == null)
+            mFileData = getData();
+        return mFileData;
+    }
+
+	/**
+     * This will retrieve all file-related data for a uri in a single query.
+     * Every get requires a query, so if you are interested in more than one field than
+     * this method will offer a SIGNIFICANT performance improvement.
+     * @return All file data for the given document, null on exception (likely !exists)
+     */
+    public @Nullable FileData getData()
+    {
+        if (FileUtil.isFileScheme(mUri))
+            return FileData.fromFile(new File(mUri.getPath()));
+        UsefulDocumentFile parent = getParentFile();
+        Uri p = null;
+        if (parent != null)
+            p = parent.getUri();
+
+        return FileData.fromUri(mContext, mUri, p);
+    }
+
+	/**
+     * POJO for storing all file data in one go.  If a user is interested in more than one
+     * field at a time this will reduce many queries to a single query
+     */
+    public static class FileData
+    {
+        public boolean canRead;
+        public boolean canWrite;
+        public boolean exists;
+        public String type;
+        public Uri uri;
+        public boolean isDirectory;
+        public boolean isFile;
+        public long lastModified;
+        public long length;
+        public String name;
+        public Uri parent;
+
+        private static FileData fromFile(File f)
+        {
+            FileData fd = new FileData();
+            fd.canRead = f.canRead();
+            fd.canWrite = f.canWrite();
+            fd.exists = f.exists();
+            fd.type = getType(f);
+            fd.uri = Uri.fromFile(f);
+            fd.isDirectory = f.isDirectory();
+            fd.isFile = f.isFile();
+            fd.lastModified = f.lastModified();
+            fd.length = f.length();
+            fd.name = f.getName();
+            fd.parent = Uri.fromFile(f.getParentFile());
+            return fd;
+        }
+
+	    /**
+         * Gather all file data in a single resolver call.  This is much faster if a code segment
+         * requires 2 or more calls to file-related data which inidividually involve resolver calls
+         * @param c host context
+         * @param uri uri of the object
+         * @param parent parent
+         * @return POJO representing file data, null on exception (likely !exists)
+	     */
+        private static @Nullable FileData fromUri(Context c, Uri uri, Uri parent)
+        {
+            FileData fd = new FileData();
+            fd.uri = uri;
+            fd.parent = parent;
+
+            String[] columns = new String[] {
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_SIZE,
+                DocumentsContract.Document.COLUMN_FLAGS,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME
+            };
+
+            try (Cursor cursor = c.getContentResolver().query(uri, columns, null, null, null))
+            {
+                fd.exists = cursor != null && cursor.getCount() > 0;
+                if (!fd.exists)
+                    return fd;
+
+                cursor.moveToFirst();
+
+                // Ignore if grant doesn't allow read
+                final boolean readPerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        == PackageManager.PERMISSION_GRANTED;
+                final boolean writePerm = c.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        == PackageManager.PERMISSION_GRANTED;
+                final String rawType = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE));
+                final int flags = cursor.getInt(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS));
+                final boolean hasMime = !TextUtils.isEmpty(rawType);
+                final boolean supportsDelete = (flags & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) != 0;
+                final boolean supportsCreate = (flags & DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0;
+                final boolean supportsWrite = (flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0;
+                final String name = cursor.getString(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME));
+
+                fd.isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(rawType);
+                if (fd.isDirectory)
+                {
+                    fd.type = null;
+                    fd.isFile = false;
+                }
+                else
+                {
+                    fd.type = rawType;
+                    fd.isFile = hasMime;
+                }
+
+                fd.name = name != null ? name : getName(uri);
+                fd.canRead = readPerm && hasMime;
+                fd.canWrite = writePerm && (supportsDelete || (fd.isDirectory && supportsCreate) || (hasMime && supportsWrite));
+                fd.lastModified = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED));
+                fd.length = cursor.getLong(cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE));
+                DocumentsContractApi19.closeQuietly(cursor);
+
+                return fd;
+            }
+            catch(Exception e)  // This is what DocumentContract.exists does, likely means !exists
+            {
+                return null;
+            }
+        }
     }
 }
