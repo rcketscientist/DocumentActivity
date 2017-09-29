@@ -6,15 +6,15 @@ android {
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 25
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
     }
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
 //    testCompile 'junit:junit:4.12'
     //includes support-v4 and appcompat-v7
-    compile "com.android.support:design:${rootProject.ext.supportLibVersion}"
+    implementation "com.android.support:design:${rootProject.ext.supportLibVersion}"
 }
