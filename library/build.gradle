@@ -13,8 +13,6 @@ android {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-//    testCompile 'junit:junit:4.12'
     //includes support-v4 and appcompat-v7
     implementation "com.android.support:design:${rootProject.ext.supportLibVersion}"
 }
