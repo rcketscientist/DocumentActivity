@@ -17,6 +17,7 @@ import com.anthonymandra.support.v4.provider.DocumentsContractApi19;
 import com.anthonymandra.support.v4.provider.DocumentsContractApi21;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -269,7 +270,12 @@ public class UsefulDocumentFile
         if (!Util.hasLollipop())
             throw new UnsupportedOperationException();
 
-        final Uri result = DocumentsContractApi21.createFile(mContext, mUri, mimeType, displayName);
+        final Uri result;
+        try {
+            result = DocumentsContractApi21.createFile(mContext, mUri, mimeType, displayName);
+        } catch (FileNotFoundException e) {
+            return null;
+        }
         return (result != null) ? new UsefulDocumentFile(this, mContext, result) : null;
     }
 
@@ -300,7 +306,12 @@ public class UsefulDocumentFile
         if (!Util.hasLollipop())
             throw new UnsupportedOperationException();
 
-        final Uri result = DocumentsContractApi21.createDirectory(mContext, mUri, displayName);
+        final Uri result;
+        try {
+            result = DocumentsContractApi21.createDirectory(mContext, mUri, displayName);
+        } catch (FileNotFoundException e) {
+            return null;
+        }
         return (result != null) ? new UsefulDocumentFile(this, mContext, result) : null;
     }
 
@@ -635,7 +646,12 @@ public class UsefulDocumentFile
         if (!Util.hasLollipop())
             throw new UnsupportedOperationException();
 
-        final Uri result = DocumentsContractApi21.renameTo(mContext, mUri, displayName);
+        final Uri result;
+        try {
+            result = DocumentsContractApi21.renameTo(mContext, mUri, displayName);
+        } catch (FileNotFoundException e) {
+            return false;
+        }
         if (result != null) {
             mUri = result;
             return true;

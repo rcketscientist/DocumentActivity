@@ -23,6 +23,7 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.util.Log;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
 /**
@@ -32,12 +33,12 @@ public class DocumentsContractApi21 {
     private static final String TAG = "DocumentFile";
 
     public static Uri createFile(Context context, Uri self, String mimeType,
-            String displayName) {
+            String displayName) throws FileNotFoundException {
         return DocumentsContract.createDocument(context.getContentResolver(), self, mimeType,
                 displayName);
     }
 
-    public static Uri createDirectory(Context context, Uri self, String displayName) {
+    public static Uri createDirectory(Context context, Uri self, String displayName) throws FileNotFoundException {
         return createFile(context, self, DocumentsContract.Document.MIME_TYPE_DIR, displayName);
     }
 
@@ -71,7 +72,7 @@ public class DocumentsContractApi21 {
         return results.toArray(new Uri[results.size()]);
     }
 
-    public static Uri renameTo(Context context, Uri self, String displayName) {
+    public static Uri renameTo(Context context, Uri self, String displayName) throws FileNotFoundException {
         return DocumentsContract.renameDocument(context.getContentResolver(), self, displayName);
     }
 
