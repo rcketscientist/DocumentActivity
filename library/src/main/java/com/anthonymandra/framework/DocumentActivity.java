@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.DocumentsContract;
 import android.support.annotation.IdRes;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
@@ -921,7 +922,7 @@ public abstract class DocumentActivity extends AppCompatActivity
 	 * @param callingMethod enum values defining the method to restart
 	 * @param callingParameters any parameters that will be passed to callingMethod
      */
-	protected void setWriteResume(Enum callingMethod, Object[] callingParameters)
+	protected void setWriteResume(@NonNull Enum callingMethod, @NonNull Object[] callingParameters)
 	{
 		setWriteMethod(callingMethod);
 		setWriteParameters(callingParameters);
