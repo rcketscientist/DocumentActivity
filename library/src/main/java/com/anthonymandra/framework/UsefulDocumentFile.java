@@ -7,8 +7,6 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
@@ -21,6 +19,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Representation of a document backed by either a
@@ -52,8 +53,8 @@ import java.util.Arrays;
  * <p>
  * Why was this necessary?  There are many flaws in the existing:
  * <ul>
- * <li>{@link android.support.v4.provider.SingleDocumentFile}
- * <li>{@link android.support.v4.provider.TreeDocumentFile}
+ * <li>{@link androidx.core.provider.SingleDocumentFile}
+ * <li>{@link androidx.core.provider.TreeDocumentFile}
  * </ul>
  * making them useless in any dynamic environment:
  * <ul>
