@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
+import android.os.StatFs;
 import android.provider.MediaStore;
 import android.util.Log;
 
@@ -18,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -166,38 +168,6 @@ public class FileUtil
 		{
 			return file.getPath();
 		}
-	}
-
-	/**
-	 * @param uri The Uri to check.
-	 * @return Whether the Uri authority is ExternalStorageProvider.
-	 */
-	public static boolean isExternalStorageDocument(Uri uri) {
-		return "com.android.externalstorage.documents".equals(uri.getAuthority());
-	}
-
-	/**
-	 * @param uri The Uri to check.
-	 * @return Whether the Uri authority is DownloadsProvider.
-	 */
-	public static boolean isDownloadsDocument(Uri uri) {
-		return "com.android.providers.downloads.documents".equals(uri.getAuthority());
-	}
-
-	/**
-	 * @param uri The Uri to check.
-	 * @return Whether the Uri authority is MediaProvider.
-	 */
-	public static boolean isMediaDocument(Uri uri) {
-		return "com.android.providers.media.documents".equals(uri.getAuthority());
-	}
-
-	/**
-	 * @param uri The Uri to check.
-	 * @return Whether the Uri authority is Google Photos.
-	 */
-	public static boolean isGooglePhotosUri(Uri uri) {
-		return "com.google.android.apps.photos.content".equals(uri.getAuthority());
 	}
 
 	/**
@@ -404,5 +374,122 @@ public class FileUtil
 			return Environment.isExternalStorageRemovable();
 		}
 		return true;
+	}
+
+	/**
+	 * Check how much usable space is available at a given path.
+	 *
+	 * @param path The path to check
+	 * @return The space available in bytes
+	 */
+	public static long getUsableSpace(File path)
+	{
+		final StatFs stats = new StatFs(path.getPath());
+		return stats.getBlockSizeLong() * stats.getAvailableBlocksLong();
+	}
+
+	public static String swapExtention(String filename, String ext)
+	{
+		if (filename == null)
+			return null;
+		return filename.replaceFirst("[.][^.]+$", "") + "." + ext;
+	}
+
+	private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
+	/**
+	 * Copy bytes from an <code>InputStream</code> to an
+	 * <code>OutputStream</code>.
+	 * <p>
+	 * This method buffers the input internally, so there is no need to use a
+	 * <code>BufferedInputStream</code>.
+	 * <p>
+	 * Large streams (over 2GB) will return a bytes copied value of
+	 * <code>-1</code> after the copy has completed since the correct
+	 * number of bytes cannot be returned as an int. For large streams
+	 * use the <code>copyLarge(InputStream, OutputStream)</code> method.
+	 *
+	 * @param input  the <code>InputStream</code> to read from
+	 * @param output  the <code>OutputStream</code> to write to
+	 * @return the number of bytes copied
+	 * @throws NullPointerException if the input or output is null
+	 * @throws IOException if an I/O error occurs
+	 * @throws ArithmeticException if the byte count is too large
+	 * @since Commons IO 1.1
+	 */
+	public static int copy(InputStream input, OutputStream output) throws IOException {
+		long count = copyLarge(input, output);
+		if (count > Integer.MAX_VALUE) {
+			return -1;
+		}
+		return (int) count;
+	}
+
+	/**
+	 * Copy bytes from a large (over 2GB) <code>InputStream</code> to an
+	 * <code>OutputStream</code>.
+	 * <p>
+	 * This method buffers the input internally, so there is no need to use a
+	 * <code>BufferedInputStream</code>.
+	 *
+	 * @param input  the <code>InputStream</code> to read from
+	 * @param output  the <code>OutputStream</code> to write to
+	 * @return the number of bytes copied
+	 * @throws NullPointerException if the input or output is null
+	 * @throws IOException if an I/O error occurs
+	 * @since Commons IO 1.3
+	 */
+	public static long copyLarge(InputStream input, OutputStream output)
+		throws IOException {
+		byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+		long count = 0;
+		int n = 0;
+		while (-1 != (n = input.read(buffer))) {
+			output.write(buffer, 0, n);
+			count += n;
+		}
+		return count;
+	}
+
+	public static boolean copy(Context context, Uri source, Uri destination) throws IOException {
+		// TODO: Clean this up and protect that NPE
+		UsefulDocumentFile destinationFile = UsefulDocumentFile.fromUri(context, destination);
+		destinationFile.cacheFileData();
+
+		UsefulDocumentFile parent = destinationFile.getParentFile();
+		if (parent == null) {
+			return false;
+		}
+		parent.createFile(null, destinationFile.getName());
+
+		try (
+			InputStream inStream = context.getContentResolver().openInputStream(source);
+			OutputStream outStream = context.getContentResolver().openOutputStream(destination)) {
+			copy(inStream, outStream);
+		}
+		catch(ArithmeticException e) {
+			Log.d(TAG, "File larger than 2GB copied.");
+		}
+		catch(Exception e) {
+			throw new IOException("Failed to copy " + source.getPath() + ": " + e.toString());
+		}
+		return true;
+	}
+
+	/**
+	 * Move a file within the constraints of SAF.
+	 *
+	 * @param source The source uri
+	 * @param target The target uri
+	 * @return true if the copying was successful.
+	 * @throws IOException if an I/O error occurs
+	 */
+	public static boolean move(final Context context, final Uri source, final Uri target) throws IOException
+	{
+		boolean success = copy(context, source, target);
+		if (success) {
+			UsefulDocumentFile sourceFile = UsefulDocumentFile.fromUri(context, source);
+			success = sourceFile.delete();
+		}
+		return success;
 	}
 }
