@@ -9,9 +9,6 @@ import android.provider.DocumentsContract
 import android.text.TextUtils
 import android.util.Log
 import android.webkit.MimeTypeMap
-import com.anthonymandra.framework.DocumentUtil
-import com.anthonymandra.framework.FileUtil
-import com.anthonymandra.framework.Util
 import com.anthonymandra.support.v4.provider.DocumentsContractApi19
 import com.anthonymandra.support.v4.provider.DocumentsContractApi21
 
@@ -120,7 +117,7 @@ class UsefulDocumentFile internal constructor(
 
     private val parentDocument: UsefulDocumentFile?
         get() {
-            if (FileUtil.isFileScheme(uri)) {
+            if (isFileScheme(uri)) {
                 val f = File(uri.path)
                 val parent = f.parentFile ?: return null
                 return UsefulDocumentFile(null, mContext, Uri.fromFile(parent))
@@ -158,7 +155,7 @@ class UsefulDocumentFile internal constructor(
         get() {
 			  if (::cachedData.isInitialized)
 				  return cachedData.name
-			  return if (FileUtil.isFileScheme(uri)) File(uri.path).name
+			  return if (isFileScheme(uri)) File(uri.path).name
 			  			else DocumentsContractApi19.getName(mContext, uri) ?: parseName(uri) ?: "error"
 		  }
 
@@ -171,7 +168,7 @@ class UsefulDocumentFile internal constructor(
         get() {
 			  if (::cachedData.isInitialized && cachedData.type != null)
 				  return cachedData.type
-			  return if (FileUtil.isFileScheme(uri)) parseType(File(uri.path))
+			  return if (isFileScheme(uri)) parseType(File(uri.path))
 			  			else DocumentsContractApi19.getType(mContext, uri)
 		  }
 
@@ -186,7 +183,7 @@ class UsefulDocumentFile internal constructor(
         get() {
 			  if (::cachedData.isInitialized)
 				  return cachedData.isDirectory
-			  return if (FileUtil.isFileScheme(uri)) File(uri.path).isDirectory
+			  return if (isFileScheme(uri)) File(uri.path).isDirectory
 			  			else DocumentsContractApi19.isDirectory(mContext, uri)
 		  }
 
@@ -200,7 +197,7 @@ class UsefulDocumentFile internal constructor(
         get() {
 			  if (::cachedData.isInitialized)
 				  return cachedData.isFile
-			  return if (FileUtil.isFileScheme(uri)) File(uri.path).isFile
+			  return if (isFileScheme(uri)) File(uri.path).isFile
 			  			else DocumentsContractApi19.isFile(mContext, uri)
 		  }
 
@@ -216,7 +213,7 @@ class UsefulDocumentFile internal constructor(
 		get() {
 			if(::cachedData.isInitialized)
 				return cachedData.length
-			return if (FileUtil.isFileScheme(uri)) File(uri.path).lastModified()
+			return if (isFileScheme(uri)) File(uri.path).lastModified()
 					else DocumentsContractApi19.lastModified(mContext, uri)
 		}
 
@@ -232,7 +229,7 @@ class UsefulDocumentFile internal constructor(
 		get() {
 			if(::cachedData.isInitialized)
 				return cachedData.length
-			return if (FileUtil.isFileScheme(uri)) File(uri.path).length()
+			return if (isFileScheme(uri)) File(uri.path).length()
 					else DocumentsContractApi19.length(mContext, uri)
 		}
 
@@ -245,7 +242,7 @@ class UsefulDocumentFile internal constructor(
 		get() {
 			if(::cachedData.isInitialized)
 				return cachedData.canRead
-			return if (FileUtil.isFileScheme(uri)) File(uri.path).canRead()
+			return if (isFileScheme(uri)) File(uri.path).canRead()
 					else DocumentsContractApi19.canRead(mContext, uri)
 		}
 
@@ -267,7 +264,7 @@ val canWrite: Boolean
 	get() {
 		if(::cachedData.isInitialized)
 			return cachedData.canWrite
-		return if (FileUtil.isFileScheme(uri)) File(uri.path).canWrite()
+		return if (isFileScheme(uri)) File(uri.path).canWrite()
 				else DocumentsContractApi19.canWrite(mContext, uri)
 	}
     /**
@@ -276,7 +273,7 @@ val canWrite: Boolean
      * will potentially return stale data
      */
     fun cacheFileData() {
-		 if (FileUtil.isFileScheme(uri))
+		 if (isFileScheme(uri))
 			 cacheFile()
 		 else {
 			 cacheUri()
@@ -315,7 +312,7 @@ val canWrite: Boolean
 		try {
 			mContext.contentResolver.query(uri, columns, null, null, null).use { cursor ->
 				if (cursor == null || cursor.count == 0) {
-					cachedData = FileData(uri= uri, exists = false)
+					return // This likely means !exists, nothing to cache
 				} else {
 					cursor.moveToFirst()
 
@@ -351,8 +348,7 @@ val canWrite: Boolean
 				}
 			}
 		} catch (e: Exception) {
-			// This is what DocumentContract.exists does, likely means !exists
-			cachedData = FileData(uri= uri, exists = false)
+			// This is what DocumentContract.exists does, likely means !exists, nothing to cache
 		}
 	}
     init {
@@ -385,7 +381,7 @@ val canWrite: Boolean
      * @see DocumentsContract.createDocument
      */
     fun createFile(mimeType: String?, displayName: String): UsefulDocumentFile? {
-        return if (FileUtil.isFileScheme(uri)) {
+        return if (isFileScheme(uri)) {
 			  var name = displayName
 			  val mFile = File(uri.path)
 
@@ -427,7 +423,7 @@ val canWrite: Boolean
      * @see DocumentsContract.createDocument
      */
     fun createDirectory(displayName: String): UsefulDocumentFile? {
-        return if (FileUtil.isFileScheme(uri)) {
+        return if (isFileScheme(uri)) {
 			  val mFile = File(uri.path)
 
 			  val target = File(mFile, displayName)
@@ -462,7 +458,7 @@ val canWrite: Boolean
      * @see DocumentsContract.deleteDocument
      */
     fun delete(): Boolean {
-        return if (FileUtil.isFileScheme(uri)) deleteFile() else deleteUri()
+        return if (isFileScheme(uri)) deleteFile() else deleteUri()
     }
 
     private fun deleteFile(): Boolean {
@@ -481,16 +477,8 @@ val canWrite: Boolean
      * @return `true` if this file exists, `false` otherwise.
      */
     fun exists(): Boolean {
-        return if (FileUtil.isFileScheme(uri)) existsFile() else existsUri()
-    }
-
-    private fun existsFile(): Boolean {
-        val mFile = File(uri.path)
-        return mFile.exists()
-    }
-
-    private fun existsUri(): Boolean {
-        return DocumentsContractApi19.exists(mContext, uri)
+        return if (isFileScheme(uri)) File(uri.path).exists()
+		  			else DocumentsContractApi19.exists(mContext, uri)
     }
 
     /**
@@ -501,7 +489,7 @@ val canWrite: Boolean
      * @see DocumentsContract.buildChildDocumentsUriUsingTree
      */
     fun listFiles(): Array<UsefulDocumentFile> {
-        return if (FileUtil.isFileScheme(uri)) {
+        return if (isFileScheme(uri)) {
 			  val mFile = File(uri.path)
 			  val results = ArrayList<UsefulDocumentFile>()
 			  val files = mFile.listFiles()
@@ -542,7 +530,7 @@ val canWrite: Boolean
      * @see DocumentsContract.renameDocument
      */
     fun renameTo(displayName: String): Boolean {
-        return if (FileUtil.isFileScheme(uri)) renameToFile(displayName) else renameToUri(displayName)
+        return if (isFileScheme(uri)) renameToFile(displayName) else renameToUri(displayName)
     }
 
     private fun renameToFile(displayName: String): Boolean {
@@ -631,6 +619,10 @@ val canWrite: Boolean
             return success
         }
 	 }
+
+	fun isFileScheme(uri: Uri): Boolean {
+		return ContentResolver.SCHEME_FILE.equals(uri.scheme, ignoreCase = true)
+	}
 }
 
 /**
