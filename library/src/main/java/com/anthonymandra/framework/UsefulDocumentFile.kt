@@ -405,10 +405,12 @@ val canWrite: Boolean
 				  throw UnsupportedOperationException()
 
 			  return try {
+				  val newFile = DocumentsContractApi21.createFile(mContext, uri, mimeType, displayName)
+					  ?: return null
 				  UsefulDocumentFile(
 					  this,
 					  mContext,
-					  DocumentsContractApi21.createFile(mContext, uri, mimeType, displayName))
+					  newFile)
 			  } catch (e: FileNotFoundException) {
 				  null
 			  }
