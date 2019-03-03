@@ -11,12 +11,11 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import com.anthonymandra.support.v4.provider.DocumentsContractApi19
 import com.anthonymandra.support.v4.provider.DocumentsContractApi21
-
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.util.ArrayList
-import java.util.Arrays
+import java.util.*
+
 
 /**
  * Representation of a document backed by either a
@@ -368,6 +367,62 @@ val canWrite: Boolean
         }
         return null
     }
+
+	/**
+	 * Create the "file" if it does not exist.  By default it will create a file and all
+	 * necessary folders.  You can create a folder with `isDirectory`, you can avoid creating
+	 * intermediary folders by setting `createDirectories` to false and simply exit with a false
+	 * condition if the folder's parent doesn't exist or can't write.
+	 */
+	fun create(isDirectory: Boolean = false, createDirectories: Boolean = true): Boolean {
+		cacheFileData()
+		if (!::cachedData.isInitialized || !cachedData.exists) {
+			// TODO: Previously pulled name from uri if file did not exist
+
+			var parent = parentFile
+			if (parent == null && !createDirectories)
+				return false
+
+			/*
+			This next part is necessary because DocumentFile.findFile is extremely slow in large
+			folders, so what we do instead is track up the tree what folders need creation
+			and place them in a stack (Using the convenient *working* UsefulDocumentFile.getParentFile).
+			We then walk the stack back down creating folders as needed.
+			*/
+
+			val hierarchyTree = Stack<UsefulDocumentFile>()
+			// Create an hierarchical tree stack of folders that need creation
+			// Stop if the parent exists or we've reached the root
+			while (parent != null && !parent.exists()) {
+				hierarchyTree.push(parent)
+				parent = parentFile
+			}
+
+			// We should be at the top of the tree
+			if (parent != null && !hierarchyTree.empty()) {
+				var outerDirectory = parent
+				// Now work back down to create the directories if needed
+				while (!hierarchyTree.empty()) {
+					val innerDirectory = hierarchyTree.pop()
+					outerDirectory = outerDirectory!!.createDirectory(innerDirectory.name)
+					if (outerDirectory == null) {
+						return false
+					}
+				}
+			}
+
+			parent = parentFile ?: return false
+
+			if (isDirectory) {
+				parent.createDirectory(name) ?: return false
+			} else {
+				parent.createFile(null, name) ?: return false
+			}
+
+			return true
+		}
+		return true	// already exists
+	}
 
     /**
      * Create a new document as a direct child of this directory.
