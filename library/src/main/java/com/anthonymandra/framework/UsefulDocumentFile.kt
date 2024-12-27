@@ -649,7 +649,7 @@ val canWrite: Boolean
         private fun getTypeForName(name: String): String {
             val lastDot = name.lastIndexOf('.')
             if (lastDot >= 0) {
-                val extension = name.substring(lastDot + 1).toLowerCase()
+                val extension = name.substring(lastDot + 1).lowercase()
                 val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
                 if (mime != null) {
                     return mime
