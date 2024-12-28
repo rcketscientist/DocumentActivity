@@ -1,5 +1,6 @@
 package com.anthonymandra.framework
 
+import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
@@ -300,7 +301,8 @@ val canWrite: Boolean
 	 * Gather all file data in a single resolver call.  This is much faster if a code segment
 	 * requires 2 or more calls to file-related data which individually involve resolver calls
 	 */
-	 private fun cacheUri() {
+	 @SuppressLint("Range")
+     private fun cacheUri() {
 		val columns = arrayOf(
 			DocumentsContract.Document.COLUMN_MIME_TYPE,
 			DocumentsContract.Document.COLUMN_LAST_MODIFIED,
