@@ -7,50 +7,21 @@ plugins {
 android {
     namespace = 'com.anthonymandra.DocumentActivity'
 
-    compileSdkVersion 28
+    compileSdkVersion 34
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 28
+        targetSdkVersion 34
     }
     namespace 'com.anthonymandra.framework'
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
-
-def getVersionName = { ->
-    return "1.0.0"
-}
-def getArtificatId = { ->
-    return "library" // Replace with library name ID
-}
-publishing {
-    publications {
-        bar(MavenPublication) {
-            groupId 'com.anthonymandra.DocumentActivity' // Replace with group ID
-            artifactId getArtificatId()
-            version getVersionName()
-            artifact("$buildDir/outputs/aar/${getArtificatId()}-release.aar")
-        }
-    }
-
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/rcketscientist/DocumentActivity")
-
-            credentials {
-                username = "$githubUser"
-                password = "$githubKey"
-            }
-        }
+        jvmTarget = JavaVersion.VERSION_17
     }
 }
 
