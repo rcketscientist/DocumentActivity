@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = 'com.anthonymandra.DocumentActivity'
+    namespace = 'com.anthonymandra.framework'
 
     compileSdkVersion 34
 
@@ -13,7 +13,13 @@ android {
         minSdkVersion 21
         targetSdkVersion 34
     }
-    namespace 'com.anthonymandra.framework'
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
