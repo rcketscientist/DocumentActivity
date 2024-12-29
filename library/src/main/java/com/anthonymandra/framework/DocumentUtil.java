@@ -260,4 +260,32 @@ public class DocumentUtil
 		String neighborId = createNewDocumentId(root, path);
 		return DocumentsContract.buildDocumentUriUsingTree(hierarchicalTreeUri, neighborId);
 	}
+
+
+	/**
+	 * Returns a uri to a neighbor file within the same folder.  This can be used to get an assumed uri
+	 * to a neighbor within a folder.  This avoids heavy calls to DocumentFile.listFiles or
+	 * write-locked createFile
+	 *
+	 * This will only work with a uri that is an hierarchical tree similar to SCHEME_FILE
+	 * @param hierarchicalTreeUri folder to install into
+	 * @return Uri to the child file
+	 */
+	@Nullable
+	public static String getFilename(@NonNull Uri hierarchicalTreeUri)
+	{
+		String documentId = getDocumentId(hierarchicalTreeUri);
+		if (documentId == null)
+			return null;
+
+		String root = getRoot(documentId);
+		if (root == null)
+			return null;
+
+		String[] parts = getPathSegments(documentId);
+		if (parts == null)
+			return null;
+
+		return parts[parts.length-1];
+	}
 }

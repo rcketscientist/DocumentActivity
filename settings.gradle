@@ -1,1 +1,7 @@
-include ':library', ':sample'
+pluginManagement {
+    repositories {
+        mavenCentral()
+        google()
+    }
+}
+include ':library'
